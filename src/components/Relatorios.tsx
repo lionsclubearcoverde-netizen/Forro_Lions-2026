@@ -9,6 +9,7 @@ export default function Relatorios() {
   const [mesas, setMesas] = useState<Mesa[]>([]);
   const [senhas, setSenhas] = useState<Senha[]>([]);
   const [loading, setLoading] = useState(true);
+  const [logoBase64, setLogoBase64] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -19,6 +20,15 @@ export default function Relatorios() {
         ]);
         setMesas(mesasData);
         setSenhas(senhasData);
+
+        // Preload logo for PDF
+        const response = await fetch("/assets/logo.png");
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setLogoBase64(reader.result as string);
+        };
+        reader.readAsDataURL(blob);
       } catch (err) {
         console.error(err);
       } finally {
@@ -33,14 +43,20 @@ export default function Relatorios() {
 
   const exportPDF = (title: string, headers: string[], data: any[][], filename: string) => {
     const doc = new jsPDF();
-    doc.text(title, 14, 15);
+    
+    if (logoBase64) {
+      doc.addImage(logoBase64, 'PNG', 170, 10, 25, 25);
+    }
+
+    doc.setFontSize(18);
+    doc.text(title, 14, 20);
     doc.setFontSize(10);
-    doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, 14, 22);
+    doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, 14, 28);
     
     autoTable(doc, {
       head: [headers],
       body: data,
-      startY: 30,
+      startY: 40,
       theme: "striped",
       headStyles: { fillColor: [37, 99, 235] }
     });
@@ -104,12 +120,16 @@ export default function Relatorios() {
     const doc = new jsPDF();
     const now = new Date().toLocaleString("pt-BR");
     
-    doc.setFontSize(18);
-    doc.text("Relatório Geral do Evento", 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Gerado em: ${now}`, 14, 22);
+    if (logoBase64) {
+      doc.addImage(logoBase64, 'PNG', 170, 10, 25, 25);
+    }
 
-    let currentY = 30;
+    doc.setFontSize(18);
+    doc.text("Relatório Geral do Evento", 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Gerado em: ${now}`, 14, 28);
+
+    let currentY = 40;
 
     // Section 1: Mesas Reservadas
     doc.setFontSize(14);
