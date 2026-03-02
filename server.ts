@@ -12,6 +12,9 @@ const supabaseUrl = process.env.SUPABASE_URL || "https://wcruelvxcdatzhiftklx.su
 const supabaseKey = process.env.SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+const app = express();
+const PORT = 3000;
+
 async function seedDatabase() {
   if (!supabaseKey) {
     console.warn("SUPABASE_ANON_KEY is missing. Database seeding skipped.");
@@ -85,9 +88,6 @@ async function seedDatabase() {
 }
 
 async function startServer() {
-  const app = express();
-  const PORT = 3000;
-
   app.use(express.json());
 
   // Seed database on startup
@@ -220,8 +220,4 @@ async function startServer() {
 
 startServer();
 
-export default (req: any, res: any) => {
-  // This is for Vercel serverless function compatibility
-  // We'll need a slightly different structure for Vercel, 
-  // but this is a good start for local/standard environments.
-};
+export default app;
