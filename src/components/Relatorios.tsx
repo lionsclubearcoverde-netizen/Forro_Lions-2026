@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { api } from "../services/api";
 import { Mesa, Senha } from "../types";
-import { FileText, Download, Printer, File as FilePdf } from "lucide-react";
+import { FileText, Download, Printer, File as FilePdf, ChevronDown, ChevronUp, X } from "lucide-react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -10,6 +10,7 @@ export default function Relatorios() {
   const [senhas, setSenhas] = useState<Senha[]>([]);
   const [loading, setLoading] = useState(true);
   const [logoBase64, setLogoBase64] = useState<string | null>(null);
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -197,23 +198,52 @@ export default function Relatorios() {
 
   if (loading) return <div className="flex items-center justify-center h-64">Carregando dados...</div>;
 
-  const ReportSection = ({ title, count, onPdf }: any) => (
-    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-      <div>
-        <h3 className="text-lg font-bold text-gray-900">{title}</h3>
-        <p className="text-sm text-gray-500">{count} registros encontrados</p>
-      </div>
-      <div className="flex gap-2">
-        <button
-          onClick={onPdf}
-          className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors"
+  const ReportSection = ({ title, count, onPdf, sectionId, children }: any) => {
+    const isExpanded = expandedSection === sectionId;
+
+    return (
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-300">
+        <div 
+          className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => setExpandedSection(isExpanded ? null : sectionId)}
         >
-          <FilePdf size={18} />
-          Baixar PDF
-        </button>
+          <div className="flex items-center gap-4">
+            <div className={`p-2 rounded-xl transition-colors ${isExpanded ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+              {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">{title}</h3>
+              <p className="text-sm text-gray-500">{count} registros encontrados</p>
+            </div>
+          </div>
+          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={onPdf}
+              className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors"
+            >
+              <FilePdf size={18} />
+              Baixar PDF
+            </button>
+          </div>
+        </div>
+
+        <div className={`border-t border-gray-100 p-6 bg-gray-50/50 ${isExpanded ? 'block' : 'hidden print:block'}`}>
+          <div className="flex justify-between items-center mb-4 print:hidden">
+            <h4 className="font-bold text-gray-700">Visualização de Dados</h4>
+            <button 
+              onClick={() => setExpandedSection(null)}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
+            {children}
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-8">
@@ -241,37 +271,117 @@ export default function Relatorios() {
           title="Mesas Reservadas"
           count={mesasReservadas.length}
           onPdf={() => handleExportMesasReservadas()}
-        />
+          sectionId="reservadas"
+        >
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Mesa</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Responsável</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Telefone</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Data Reserva</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {mesasReservadas.map((m) => (
+                <tr key={m.id}>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{m.numero}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{m.responsavel || "-"}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{m.telefone || "-"}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {m.data_reserva ? new Date(m.data_reserva).toLocaleDateString("pt-BR") : "-"}
+                  </td>
+                </tr>
+              ))}
+              {mesasReservadas.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-gray-400 italic">Nenhuma mesa reservada encontrada.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </ReportSection>
+
         <ReportSection
           title="Mesas Pagas"
           count={mesasPagas.length}
           onPdf={() => handleExportMesasPagas()}
-        />
+          sectionId="pagas"
+        >
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Mesa</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Responsável</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Valor</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Pagamento</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Data</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {mesasPagas.map((m) => (
+                <tr key={m.id}>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{m.numero}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{m.responsavel || "-"}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(m.valor_pago)}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{m.forma_pagamento || "-"}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {m.data_pagamento ? new Date(m.data_pagamento).toLocaleDateString("pt-BR") : "-"}
+                  </td>
+                </tr>
+              ))}
+              {mesasPagas.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-400 italic">Nenhuma mesa paga encontrada.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </ReportSection>
+
         <ReportSection
           title="Venda de Senhas"
           count={senhas.length}
           onPdf={() => handleExportSenhas()}
-        />
-      </div>
-
-
-      <div className="bg-blue-600 p-8 rounded-3xl text-white">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 bg-white/20 rounded-2xl">
-            <Printer size={24} />
-          </div>
-          <h2 className="text-xl font-bold">Impressão Rápida</h2>
-        </div>
-        <p className="text-blue-100 mb-8 max-w-md">
-          Para imprimir qualquer tela do sistema de forma formatada, utilize o atalho <kbd className="bg-white/20 px-2 py-1 rounded text-white font-mono">Ctrl + P</kbd>. O sistema já possui estilos otimizados para impressão.
-        </p>
-        <button
-          onClick={() => window.print()}
-          className="px-6 py-3 bg-white text-blue-600 font-bold rounded-2xl hover:bg-blue-50 transition-colors shadow-lg shadow-blue-900/20"
+          sectionId="senhas"
         >
-          Imprimir Página Atual
-        </button>
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nome</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Qtd</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Total</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Pagamento</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Data</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {senhas.map((s) => (
+                <tr key={s.id}>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{s.nome}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{s.quantidade}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(s.valor_total)}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{s.forma_pagamento}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(s.data_venda).toLocaleDateString("pt-BR")}
+                  </td>
+                </tr>
+              ))}
+              {senhas.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-400 italic">Nenhuma venda de senha encontrada.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </ReportSection>
       </div>
+
+
     </div>
   );
 }
