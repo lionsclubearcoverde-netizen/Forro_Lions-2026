@@ -100,6 +100,81 @@ export default function Relatorios() {
     );
   };
 
+  const handleExportRelatorioGeral = () => {
+    const doc = new jsPDF();
+    const now = new Date().toLocaleString("pt-BR");
+    
+    doc.setFontSize(18);
+    doc.text("Relatório Geral do Evento", 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Gerado em: ${now}`, 14, 22);
+
+    let currentY = 30;
+
+    // Section 1: Mesas Reservadas
+    doc.setFontSize(14);
+    doc.text("1. Mesas Reservadas", 14, currentY);
+    autoTable(doc, {
+      head: [["Mesa", "Responsável", "Telefone", "Data Reserva"]],
+      body: mesasReservadas.map(m => [
+        m.numero,
+        m.responsavel || "-",
+        m.telefone || "-",
+        m.data_reserva ? new Date(m.data_reserva).toLocaleDateString("pt-BR") : "-"
+      ]),
+      startY: currentY + 5,
+      theme: "striped",
+      headStyles: { fillColor: [37, 99, 235] }
+    });
+    
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+
+    // Section 2: Mesas Pagas
+    doc.setFontSize(14);
+    doc.text("2. Mesas Pagas", 14, currentY);
+    autoTable(doc, {
+      head: [["Mesa", "Responsável", "Telefone", "Valor", "Pagamento", "Data Pagamento"]],
+      body: mesasPagas.map(m => [
+        m.numero,
+        m.responsavel || "-",
+        m.telefone || "-",
+        new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(m.valor_pago),
+        m.forma_pagamento || "-",
+        m.data_pagamento ? new Date(m.data_pagamento).toLocaleDateString("pt-BR") : "-"
+      ]),
+      startY: currentY + 5,
+      theme: "striped",
+      headStyles: { fillColor: [37, 99, 235] }
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+
+    // Section 3: Venda de Senhas
+    if (currentY > 240) {
+      doc.addPage();
+      currentY = 20;
+    }
+    
+    doc.setFontSize(14);
+    doc.text("3. Venda de Senhas", 14, currentY);
+    autoTable(doc, {
+      head: [["Nome", "Telefone", "Qtd", "Total", "Pagamento", "Data Venda"]],
+      body: senhas.map(s => [
+        s.nome,
+        s.telefone || "-",
+        s.quantidade,
+        new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(s.valor_total),
+        s.forma_pagamento,
+        new Date(s.data_venda).toLocaleDateString("pt-BR")
+      ]),
+      startY: currentY + 5,
+      theme: "striped",
+      headStyles: { fillColor: [37, 99, 235] }
+    });
+
+    doc.save("relatorio-geral-lions.pdf");
+  };
+
   if (loading) return <div className="flex items-center justify-center h-64">Carregando dados...</div>;
 
   const ReportSection = ({ title, count, onPdf }: any) => (
@@ -128,6 +203,20 @@ export default function Relatorios() {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
+        <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-bold text-blue-900">Relatório Geral Completo</h3>
+            <p className="text-sm text-blue-600">Consolidado de mesas (reservadas/pagas) e senhas em um único documento.</p>
+          </div>
+          <button
+            onClick={() => handleExportRelatorioGeral()}
+            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl text-sm font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
+          >
+            <FilePdf size={20} />
+            Gerar Relatório Geral
+          </button>
+        </div>
+
         <ReportSection
           title="Mesas Reservadas"
           count={mesasReservadas.length}
