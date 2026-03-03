@@ -29,7 +29,6 @@ async function seedDatabase() {
     if (mesaCount === 0) {
       console.log("[server] Criando mesas iniciais...");
       const mesasToInsert = [];
-      // Mesas 1-40 (Setor Inferior)
       for (let r = 0; r < 4; r++) {
         for (let c = 0; c < 10; c++) {
           mesasToInsert.push({
@@ -41,11 +40,9 @@ async function seedDatabase() {
           });
         }
       }
-      // Mesas 41-45 (Setor Esquerda)
       for (let r = 0; r < 5; r++) {
         mesasToInsert.push({ numero: 41 + r, setor: "esquerda", linha: 4 + r, coluna: 0, status: "livre" });
       }
-      // Mesas 46-60 (Setor Direita)
       for (let c = 0; c < 3; c++) {
         for (let r = 0; r < 5; r++) {
           mesasToInsert.push({ numero: 46 + c * 5 + r, setor: "direita", linha: 4 + r, coluna: 9 + c, status: "livre" });
@@ -119,6 +116,7 @@ app.post("/api/login", async (req, res) => {
   }
 
   try {
+    // Tenta o login
     const { data, error } = await supabase
       .from("usuarios")
       .select("username")
@@ -127,18 +125,27 @@ app.post("/api/login", async (req, res) => {
       .maybeSingle();
 
     if (error) {
-      console.error("[server] Erro no login:", error.message);
-      return res.status(500).json({ success: false, message: "Erro de conexão com o banco de dados" });
+      return res.status(500).json({ success: false, message: `Erro Supabase: ${error.message}` });
     }
 
     if (!data) {
+      // Se não encontrou o usuário, verifica se a tabela está vazia
+      const { count } = await supabase.from("usuarios").select("*", { count: 'exact', head: true });
+      
+      if (count === 0) {
+        // Se estiver vazia, cria o admin e tenta logar de novo
+        await supabase.from("usuarios").insert([{ username: "admin", password: "forro2026" }]);
+        if (username.trim() === "admin" && password.trim() === "forro2026") {
+          return res.json({ success: true, user: { username: "admin" } });
+        }
+      }
+      
       return res.status(401).json({ success: false, message: "Usuário ou senha incorretos" });
     }
 
     res.json({ success: true, user: { username: data.username } });
-  } catch (err) {
-    console.error("[server] Erro inesperado no login:", err);
-    res.status(500).json({ success: false, message: "Erro interno do servidor" });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: `Erro Interno: ${err.message}` });
   }
 });
 
