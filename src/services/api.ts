@@ -47,9 +47,17 @@ export const api = {
       body: JSON.stringify({ username, password }),
     });
     
-    const data = await res.json();
+    let data;
+    const contentType = res.headers.get("content-type");
+    if (contentType && contentType.indexOf("application/json") !== -1) {
+      data = await res.json();
+    } else {
+      const text = await res.text();
+      data = { message: text || "Erro desconhecido no servidor" };
+    }
+
     if (!res.ok) {
-      throw new Error(data.message || "Erro ao realizar login");
+      throw new Error(data.message || `Erro ${res.status}`);
     }
     return data;
   }

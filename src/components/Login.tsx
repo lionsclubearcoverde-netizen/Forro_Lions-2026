@@ -18,6 +18,7 @@ export default function Login({ onLogin }: { onLogin: (user: any) => void }) {
       toast.success(`Bem-vindo, ${res.user.username}!`);
       onLogin(res.user);
     } catch (err: any) {
+      console.error("Erro detalhado do login:", err);
       toast.error(err.message || "Erro ao realizar login");
     } finally {
       setLoading(false);
