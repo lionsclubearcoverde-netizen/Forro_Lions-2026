@@ -8,33 +8,25 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Supabase Client Initialization
-const supabaseUrl = process.env.SUPABASE_URL || "https://wcruelvxcdatzhiftklx.supabase.co";
-const supabaseKey = process.env.SUPABASE_ANON_KEY || "";
+const supabaseUrl = "https://wcruelvxcdatzhiftklx.supabase.co";
+const supabaseKey = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjcnVlbHZ4Y2RhdHpoaWZ0a2x4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NDA1MzAsImV4cCI6MjA4ODAxNjUzMH0.fZS5PDYaslW-60tHd_DtkVRc4f4Qwk5pehLwaotUEY4";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const app = express();
 const PORT = 3000;
 
 async function seedDatabase() {
-  if (!supabaseKey) {
-    console.warn("SUPABASE_ANON_KEY is missing. Database seeding skipped.");
-    return;
-  }
-
   try {
     // Check if mesas exist
     const { count: mesaCount, error: mesaError } = await supabase.from("mesas").select("*", { count: "exact", head: true });
     
     if (mesaError) {
-      console.error("Error checking mesas table:", mesaError.message);
-      if (mesaError.code === 'PGRST116' || mesaError.message.includes('relation "mesas" does not exist')) {
-        console.error("The 'mesas' table does not exist in Supabase. Please run the SQL setup script.");
-      }
+      console.error("[server] Erro ao verificar tabela mesas:", mesaError.message);
       return;
     }
 
     if (mesaCount === 0) {
-      console.log("Seeding mesas to Supabase...");
+      console.log("[server] Populando mesas iniciais...");
       const mesasToInsert = [];
       
       // Bottom Block (1-40)
@@ -75,15 +67,17 @@ async function seedDatabase() {
       }
 
       await supabase.from("mesas").insert(mesasToInsert);
+      console.log("[server] Mesas criadas com sucesso.");
     }
 
     // Seed Admin if empty
     const { count: userCount, error: userError } = await supabase.from("usuarios").select("*", { count: "exact", head: true });
     if (!userError && userCount === 0) {
+      console.log("[server] Criando usuário admin padrão...");
       await supabase.from("usuarios").insert([{ username: "admin", password: "forro2026" }]);
     }
   } catch (err) {
-    console.error("Unexpected error during seeding:", err);
+    console.error("[server] Erro inesperado no seeding:", err);
   }
 }
 
@@ -157,21 +151,6 @@ async function startServer() {
   app.post("/api/login", async (req, res) => {
     const { username, password } = req.body;
     
-    if (!supabaseKey) {
-      return res.status(500).json({ 
-        success: false, 
-        message: "Configuração do Supabase incompleta. Verifique o segredo SUPABASE_ANON_KEY." 
-      });
-    }
-
-    // Check if any users exist at all
-    const { count, error: countError } = await supabase.from("usuarios").select("*", { count: "exact", head: true });
-    
-    if (!countError && count === 0) {
-      console.log("No users found. Creating default admin...");
-      await supabase.from("usuarios").insert([{ username: "admin", password: "forro2026" }]);
-    }
-
     const { data, error } = await supabase
       .from("usuarios")
       .select("*")
@@ -180,13 +159,7 @@ async function startServer() {
       .single();
 
     if (error) {
-      console.error("Login error:", error.message);
-      if (error.message.includes('relation "usuarios" does not exist')) {
-        return res.status(500).json({ 
-          success: false, 
-          message: "A tabela 'usuarios' não existe no Supabase. Por favor, execute o script SQL de configuração." 
-        });
-      }
+      console.error("[server] Erro de login:", error.message);
       return res.status(401).json({ success: false, message: "Credenciais inválidas" });
     }
 
@@ -211,11 +184,9 @@ async function startServer() {
     });
   }
 
-  if (process.env.NODE_ENV !== "production") {
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-  }
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
 }
 
 startServer();
