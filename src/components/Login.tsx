@@ -1,11 +1,11 @@
 import { useState } from "react";
 import React from "react";
 import { api } from "../services/api";
-import { Lock, User, Eye, EyeOff } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
 
-export default function Login({ onLogin }: { onLogin: (user: any) => void }) {
-  const [username, setUsername] = useState("");
+export default function Login() {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -14,12 +14,11 @@ export default function Login({ onLogin }: { onLogin: (user: any) => void }) {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await api.login(username, password);
-      toast.success(`Bem-vindo, ${res.user.username}!`);
-      onLogin(res.user);
+      await api.login(email, password);
+      toast.success("Bem-vindo ao sistema!");
     } catch (err: any) {
-      console.error("Erro detalhado do login:", err);
-      toast.error(err.message || "Erro ao realizar login");
+      console.error("Erro no login:", err);
+      toast.error(err.message || "E-mail ou senha incorretos");
     } finally {
       setLoading(false);
     }
@@ -31,7 +30,7 @@ export default function Login({ onLogin }: { onLogin: (user: any) => void }) {
         <div className="text-center">
           <div className="mx-auto h-32 w-32 flex items-center justify-center">
             <img 
-              src={`/assets/logo.png?v=${Date.now()}`} 
+              src="/assets/logo.png" 
               alt="Lions Logo" 
               className="h-full w-full object-contain"
               onError={(e) => {
@@ -45,18 +44,18 @@ export default function Login({ onLogin }: { onLogin: (user: any) => void }) {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Usuário</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                  <User size={18} />
+                  <Mail size={18} />
                 </div>
                 <input
-                  type="text"
+                  type="email"
                   required
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
-                  placeholder="admin"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
             </div>

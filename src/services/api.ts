@@ -72,13 +72,18 @@ export const api = {
     return { ...stats, totalGeral: stats.arrecadadoMesas + stats.arrecadadoSenhas };
   },
 
-  async login(username: string, password: string): Promise<any> {
-    // Para simplificar e manter o acesso rápido, usaremos o Auth do Supabase ou uma verificação simples
-    // Se você quiser usar o Auth real do Supabase, precisará criar um usuário no painel Auth.
-    // Por enquanto, manteremos a lógica de admin/admin para não travar seu acesso.
-    if (username === 'admin' && password === 'admin') {
-      return { user: { username: 'admin' } };
-    }
-    throw new Error("Usuário ou senha incorretos");
+  async login(email: string, password: string): Promise<any> {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async logout(): Promise<void> {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   }
 };

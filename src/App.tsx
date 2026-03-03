@@ -9,6 +9,7 @@ import Relatorios from "./components/Relatorios";
 import Login from "./components/Login";
 import ToastProvider from "./components/ToastProvider";
 import { api } from "./services/api";
+import { supabase } from "./integrations/supabase/client";
 
 const Navigation = ({ onLogout }: { onLogout: () => void }) => {
   const location = useLocation();
@@ -127,25 +128,26 @@ const Navigation = ({ onLogout }: { onLogout: () => void }) => {
 };
 
 export default function App() {
-  const [user, setUser] = useState<any>(null);
+  const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("lions_user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+    // Verificar sessão inicial
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    // Escutar mudanças na autenticação
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const handleLogin = (userData: any) => {
-    setUser(userData);
-    localStorage.setItem("lions_user", JSON.stringify(userData));
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    localStorage.removeItem("lions_user");
+  const handleLogout = async () => {
+    await api.logout();
   };
 
   if (loading) return <div className="flex items-center justify-center h-screen">Carregando...</div>;
@@ -154,9 +156,9 @@ export default function App() {
     <Router>
       <ToastProvider />
       <div className="min-h-screen bg-gray-50">
-        {!user ? (
+        {!session ? (
           <Routes>
-            <Route path="/login" element={<Login onLogin={handleLogin} />} />
+            <Route path="/login" element={<Login />} />
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         ) : (
