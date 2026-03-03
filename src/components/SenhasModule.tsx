@@ -3,8 +3,9 @@ import React from "react";
 import { api } from "../services/api";
 import { Senha } from "../types";
 import { VALOR_SENHA, FORMAS_PAGAMENTO } from "../constants";
-import { Ticket, Plus, Trash2, Search, User, Phone, CreditCard, DollarSign, Calendar } from "lucide-react";
+import { Ticket, Plus, Trash2, Search, User, Phone, CreditCard, DollarSign, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import toast from "react-hot-toast";
 
 export default function SenhasModule() {
   const [senhas, setSenhas] = useState<Senha[]>([]);
@@ -12,7 +13,6 @@ export default function SenhasModule() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAdding, setIsAdding] = useState(false);
 
-  // Form state
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [quantidade, setQuantidade] = useState(1);
@@ -24,6 +24,7 @@ export default function SenhasModule() {
       setSenhas(data);
     } catch (err) {
       console.error(err);
+      toast.error("Erro ao carregar senhas.");
     } finally {
       setLoading(false);
     }
@@ -37,6 +38,7 @@ export default function SenhasModule() {
     e.preventDefault();
     if (!nome || quantidade < 1) return;
 
+    const loadingToast = toast.loading("Registrando venda...");
     try {
       await api.addSenha({
         nome,
@@ -46,6 +48,7 @@ export default function SenhasModule() {
         valor_total: quantidade * VALOR_SENHA,
         forma_pagamento: formaPagamento,
       });
+      toast.success("Venda registrada com sucesso!", { id: loadingToast });
       setIsAdding(false);
       setNome("");
       setTelefone("");
@@ -53,17 +56,20 @@ export default function SenhasModule() {
       fetchSenhas();
     } catch (err) {
       console.error(err);
-      alert("Erro ao salvar venda.");
+      toast.error("Erro ao salvar venda.", { id: loadingToast });
     }
   };
 
   const handleDelete = async (id: number) => {
     if (confirm("Deseja realmente excluir esta venda?")) {
+      const loadingToast = toast.loading("Excluindo venda...");
       try {
         await api.deleteSenha(id);
+        toast.success("Venda excluída com sucesso!", { id: loadingToast });
         fetchSenhas();
       } catch (err) {
         console.error(err);
+        toast.error("Erro ao excluir venda.", { id: loadingToast });
       }
     }
   };
@@ -93,7 +99,6 @@ export default function SenhasModule() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Statistics */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6">Resumo de Senhas</h3>
@@ -131,7 +136,6 @@ export default function SenhasModule() {
           </div>
         </div>
 
-        {/* Sales List */}
         <div className="lg:col-span-2">
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
@@ -197,7 +201,6 @@ export default function SenhasModule() {
         </div>
       </div>
 
-      {/* Add Modal */}
       <AnimatePresence>
         {isAdding && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -315,25 +318,5 @@ export default function SenhasModule() {
         )}
       </AnimatePresence>
     </div>
-  );
-}
-
-function X({ size, className }: { size: number, className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M18 6 6 18" />
-      <path d="m6 6 12 12" />
-    </svg>
   );
 }

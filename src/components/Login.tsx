@@ -2,23 +2,23 @@ import { useState } from "react";
 import React from "react";
 import { api } from "../services/api";
 import { Lock, User, Eye, EyeOff } from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function Login({ onLogin }: { onLogin: (user: any) => void }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
     try {
       const res = await api.login(username, password);
+      toast.success(`Bem-vindo, ${res.user.username}!`);
       onLogin(res.user);
     } catch (err: any) {
-      setError(err.message);
+      toast.error(err.message || "Erro ao realizar login");
     } finally {
       setLoading(false);
     }
@@ -37,7 +37,6 @@ export default function Login({ onLogin }: { onLogin: (user: any) => void }) {
               className="h-full w-full object-contain"
               referrerPolicy="no-referrer"
               onError={(e) => {
-                // Fallback if local logo is missing
                 (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Lions_Clubs_International_logo.svg/600px-Lions_Clubs_International_logo.svg.png";
               }}
             />
@@ -87,12 +86,6 @@ export default function Login({ onLogin }: { onLogin: (user: any) => void }) {
               </div>
             </div>
           </div>
-
-          {error && (
-            <div className="text-red-500 text-sm text-center bg-red-50 py-2 rounded-lg border border-red-100">
-              {error}
-            </div>
-          )}
 
           <button
             type="submit"

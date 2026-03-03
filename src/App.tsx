@@ -7,6 +7,7 @@ import MesaMap from "./components/MesaMap";
 import SenhasModule from "./components/SenhasModule";
 import Relatorios from "./components/Relatorios";
 import Login from "./components/Login";
+import ToastProvider from "./components/ToastProvider";
 import { api } from "./services/api";
 
 const Navigation = ({ onLogout }: { onLogout: () => void }) => {
@@ -35,7 +36,6 @@ const Navigation = ({ onLogout }: { onLogout: () => void }) => {
                   className="h-full w-full object-contain"
                   referrerPolicy="no-referrer"
                   onError={(e) => {
-                    // Fallback if local logo is missing
                     (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Lions_Clubs_International_logo.svg/240px-Lions_Clubs_International_logo.svg.png";
                   }}
                 />
@@ -44,7 +44,6 @@ const Navigation = ({ onLogout }: { onLogout: () => void }) => {
             </Link>
           </div>
 
-          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-4">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -73,7 +72,6 @@ const Navigation = ({ onLogout }: { onLogout: () => void }) => {
             </button>
           </div>
 
-          {/* Mobile menu button */}
           <div className="md:hidden flex items-center">
             <button
               onClick={() => setIsOpen(!isOpen)}
@@ -85,7 +83,6 @@ const Navigation = ({ onLogout }: { onLogout: () => void }) => {
         </div>
       </div>
 
-      {/* Mobile Navigation */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -158,6 +155,7 @@ export default function App() {
 
   return (
     <Router>
+      <ToastProvider />
       <div className="min-h-screen bg-gray-50">
         {!user ? (
           <Routes>
@@ -182,4 +180,3 @@ export default function App() {
     </Router>
   );
 }
-

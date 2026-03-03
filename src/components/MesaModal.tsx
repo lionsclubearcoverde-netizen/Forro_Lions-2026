@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Mesa, MesaStatus } from "../types";
 import { api } from "../services/api";
 import { VALOR_MESA, FORMAS_PAGAMENTO, STATUS_COLORS } from "../constants";
-import { X, User, Phone, CreditCard, DollarSign, Calendar, FileText, CheckCircle } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { X, User, Phone, CreditCard, DollarSign, Calendar, CheckCircle } from "lucide-react";
+import { motion } from "motion/react";
+import toast from "react-hot-toast";
 
 interface MesaModalProps {
   mesa: Mesa;
@@ -21,11 +22,12 @@ export default function MesaModal({ mesa, onClose, onUpdate }: MesaModalProps) {
 
   const handleSave = async (newStatus: MesaStatus) => {
     if (!responsavel && newStatus !== "livre") {
-      alert("O nome do responsável é obrigatório para reservas ou pagamentos.");
+      toast.error("O nome do responsável é obrigatório.");
       return;
     }
 
     setLoading(true);
+    const loadingToast = toast.loading("Salvando alterações...");
     try {
       const now = new Date().toISOString();
       const updateData: Partial<Mesa> = {
@@ -39,10 +41,11 @@ export default function MesaModal({ mesa, onClose, onUpdate }: MesaModalProps) {
       };
 
       await api.updateMesa(mesa.id, updateData);
+      toast.success(`Mesa ${mesa.numero} atualizada com sucesso!`, { id: loadingToast });
       onUpdate();
     } catch (err) {
       console.error(err);
-      alert("Erro ao atualizar mesa.");
+      toast.error("Erro ao atualizar mesa.", { id: loadingToast });
     } finally {
       setLoading(false);
     }
