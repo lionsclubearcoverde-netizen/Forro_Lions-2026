@@ -30,7 +30,7 @@ export default function Login({ onLogin }: { onLogin: (user: any) => void }) {
         <div className="text-center">
           <div className="mx-auto h-32 w-32 flex items-center justify-center">
             <img 
-              src="/assets/logo.png" 
+              src={`/assets/logo.png?v=${Date.now()}`} 
               alt="Lions Logo" 
               className="h-full w-full object-contain"
               onError={(e) => {

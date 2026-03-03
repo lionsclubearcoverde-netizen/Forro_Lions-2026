@@ -1,13 +1,11 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
-import path from "url";
 import { fileURLToPath } from "url";
-import fs from "fs";
-import pathNode from "path";
+import path from "path";
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = pathNode.dirname(__filename);
+const __dirname = path.dirname(__filename);
 
 // Supabase Client Initialization
 const supabaseUrl = "https://wcruelvxcdatzhiftklx.supabase.co";
@@ -20,16 +18,10 @@ const PORT = 3000;
 async function seedDatabase() {
   try {
     const { count: mesaCount, error: mesaError } = await supabase.from("mesas").select("*", { count: "exact", head: true });
-    
-    if (mesaError) {
-      console.error("[server] Erro ao verificar tabela mesas:", mesaError.message);
-      return;
-    }
+    if (mesaError) return;
 
     if (mesaCount === 0) {
-      console.log("[server] Populando mesas iniciais...");
       const mesasToInsert = [];
-      
       for (let r = 0; r < 4; r++) {
         for (let c = 0; c < 10; c++) {
           mesasToInsert.push({
@@ -41,49 +33,35 @@ async function seedDatabase() {
           });
         }
       }
-
       for (let r = 0; r < 5; r++) {
-        mesasToInsert.push({
-          numero: 41 + r,
-          setor: "esquerda",
-          linha: 4 + r,
-          coluna: 0,
-          status: "livre"
-        });
+        mesasToInsert.push({ numero: 41 + r, setor: "esquerda", linha: 4 + r, coluna: 0, status: "livre" });
       }
-
       for (let c = 0; c < 3; c++) {
         for (let r = 0; r < 5; r++) {
-          mesasToInsert.push({
-            numero: 46 + c * 5 + r,
-            setor: "direita",
-            linha: 4 + r,
-            coluna: 9 + c,
-            status: "livre"
-          });
+          mesasToInsert.push({ numero: 46 + c * 5 + r, setor: "direita", linha: 4 + r, coluna: 9 + c, status: "livre" });
         }
       }
-
       await supabase.from("mesas").insert(mesasToInsert);
     }
 
-    const { count: userCount, error: userError } = await supabase.from("usuarios").select("*", { count: "exact", head: true });
-    if (!userError && userCount === 0) {
+    const { count: userCount } = await supabase.from("usuarios").select("*", { count: "exact", head: true });
+    if (userCount === 0) {
       await supabase.from("usuarios").insert([{ username: "admin", password: "forro2026" }]);
     }
   } catch (err) {
-    console.error("[server] Erro inesperado no seeding:", err);
+    console.error("[server] Seeding error:", err);
   }
 }
 
 async function startServer() {
   app.use(express.json());
 
-  // Servir a pasta public explicitamente para garantir que assets carreguem
-  app.use(express.static(pathNode.join(__dirname, "public")));
+  // Servir arquivos da pasta public explicitamente ANTES do Vite
+  app.use(express.static(path.resolve(__dirname, "public")));
 
   seedDatabase().catch(console.error);
 
+  // API Routes
   app.get("/api/mesas", async (req, res) => {
     const { data, error } = await supabase.from("mesas").select("*").order("numero", { ascending: true });
     if (error) return res.status(500).json({ error: error.message });
@@ -119,7 +97,6 @@ async function startServer() {
   app.get("/api/stats", async (req, res) => {
     const { data: mesas } = await supabase.from("mesas").select("status, valor_pago");
     const { data: senhas } = await supabase.from("senhas").select("valor_total");
-
     const stats = {
       totalMesas: mesas?.length || 0,
       livres: mesas?.filter(m => m.status === "livre").length || 0,
@@ -128,7 +105,6 @@ async function startServer() {
       arrecadadoMesas: mesas?.filter(m => m.status === "paga").reduce((acc, m) => acc + (m.valor_pago || 0), 0) || 0,
       arrecadadoSenhas: senhas?.reduce((acc, s) => acc + (s.valor_total || 0), 0) || 0,
     };
-
     res.json({ ...stats, totalGeral: stats.arrecadadoMesas + stats.arrecadadoSenhas });
   });
 
@@ -146,8 +122,8 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(pathNode.join(__dirname, "dist")));
-    app.get("*", (req, res) => res.sendFile(pathNode.join(__dirname, "dist", "index.html")));
+    app.use(express.static(path.resolve(__dirname, "dist")));
+    app.get("*", (req, res) => res.sendFile(path.resolve(__dirname, "dist", "index.html")));
   }
 
   app.listen(PORT, "0.0.0.0", () => {
