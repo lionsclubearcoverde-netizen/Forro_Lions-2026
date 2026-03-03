@@ -112,15 +112,6 @@ app.post("/api/login", async (req, res) => {
 // Produção / Vercel
 if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
   app.use(express.static(path.resolve(__dirname, "dist")));
-} else {
-  // Local apenas: Importação dinâmica para não quebrar na Vercel
-  const startLocal = async () => {
-    const { createServer } = await import("vite");
-    const vite = await createServer({ server: { middlewareMode: true }, appType: "spa" });
-    app.use(vite.middlewares);
-    app.listen(3000, () => console.log("Local: http://localhost:3000"));
-  };
-  startLocal();
 }
 
 export default app;
