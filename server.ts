@@ -9,7 +9,9 @@ const __dirname = path.dirname(__filename);
 
 // Supabase Client Initialization
 const supabaseUrl = "https://wcruelvxcdatzhiftklx.supabase.co";
+// Usamos a chave fornecida como fallback caso a variável de ambiente não esteja definida
 const supabaseKey = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjcnVlbHZ4Y2RhdHpoaWZ0a2x4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NDA1MzAsImV4cCI6MjA4ODAxNjUzMH0.fZS5PDYaslW-60tHd_DtkVRc4f4Qwk5pehLwaotUEY4";
+
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const app = express();
@@ -18,7 +20,6 @@ async function seedDatabase() {
   try {
     console.log("[server] Verificando banco de dados...");
     
-    // Verificar mesas
     const { count: mesaCount } = await supabase.from("mesas").select("*", { count: "exact", head: true });
     if (mesaCount === 0) {
       console.log("[server] Criando mesas iniciais...");
@@ -45,7 +46,6 @@ async function seedDatabase() {
       await supabase.from("mesas").insert(mesasToInsert);
     }
 
-    // Verificar usuário admin - Usando select normal para evitar erros de single()
     const { data: users } = await supabase.from("usuarios").select("*").eq("username", "admin");
     if (!users || users.length === 0) {
       console.log("[server] Criando usuário admin padrão...");
@@ -110,9 +110,7 @@ app.get("/api/stats", async (req, res) => {
 
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
-  console.log(`[server] Tentativa de login para: ${username}`);
   
-  // Garantir que o seed rodou (importante para Vercel Serverless)
   await seedDatabase();
 
   const { data, error } = await supabase
@@ -122,20 +120,16 @@ app.post("/api/login", async (req, res) => {
     .eq("password", password.trim());
 
   if (error) {
-    console.error("[server] Erro na consulta de login:", error);
     return res.status(500).json({ success: false, message: "Erro no banco de dados: " + error.message });
   }
 
   if (!data || data.length === 0) {
-    console.log("[server] Login falhou: usuário ou senha incorretos");
-    return res.status(401).json({ success: false, message: "Credenciais inválidas" });
+    return res.status(401).json({ success: false, message: "Usuário ou senha incorretos" });
   }
 
-  console.log("[server] Login bem-sucedido!");
   res.json({ success: true, user: { username: data[0].username } });
 });
 
-// Inicialização
 const startServer = async () => {
   await seedDatabase();
   
