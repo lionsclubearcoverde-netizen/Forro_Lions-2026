@@ -24,18 +24,15 @@ export default function Login({ onLogin }: { onLogin: (user: any) => void }) {
     }
   };
 
-  const logoUrl = "/assets/logo.png";
-
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-gray-50">
       <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
         <div className="text-center">
           <div className="mx-auto h-32 w-32 flex items-center justify-center">
             <img 
-              src={logoUrl} 
+              src="/assets/logo.png" 
               alt="Lions Logo" 
               className="h-full w-full object-contain"
-              referrerPolicy="no-referrer"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Lions_Clubs_International_logo.svg/600px-Lions_Clubs_International_logo.svg.png";
               }}

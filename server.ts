@@ -1,11 +1,13 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
-import path from "path";
+import path from "url";
 import { fileURLToPath } from "url";
+import fs from "fs";
+import pathNode from "path";
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = pathNode.dirname(__filename);
 
 // Supabase Client Initialization
 const supabaseUrl = "https://wcruelvxcdatzhiftklx.supabase.co";
@@ -17,7 +19,6 @@ const PORT = 3000;
 
 async function seedDatabase() {
   try {
-    // Check if mesas exist
     const { count: mesaCount, error: mesaError } = await supabase.from("mesas").select("*", { count: "exact", head: true });
     
     if (mesaError) {
@@ -29,7 +30,6 @@ async function seedDatabase() {
       console.log("[server] Populando mesas iniciais...");
       const mesasToInsert = [];
       
-      // Bottom Block (1-40)
       for (let r = 0; r < 4; r++) {
         for (let c = 0; c < 10; c++) {
           mesasToInsert.push({
@@ -42,7 +42,6 @@ async function seedDatabase() {
         }
       }
 
-      // Left Column (41-45)
       for (let r = 0; r < 5; r++) {
         mesasToInsert.push({
           numero: 41 + r,
@@ -53,7 +52,6 @@ async function seedDatabase() {
         });
       }
 
-      // Right Block (46-60)
       for (let c = 0; c < 3; c++) {
         for (let r = 0; r < 5; r++) {
           mesasToInsert.push({
@@ -67,13 +65,10 @@ async function seedDatabase() {
       }
 
       await supabase.from("mesas").insert(mesasToInsert);
-      console.log("[server] Mesas criadas com sucesso.");
     }
 
-    // Seed Admin if empty
     const { count: userCount, error: userError } = await supabase.from("usuarios").select("*", { count: "exact", head: true });
     if (!userError && userCount === 0) {
-      console.log("[server] Criando usuário admin padrão...");
       await supabase.from("usuarios").insert([{ username: "admin", password: "forro2026" }]);
     }
   } catch (err) {
@@ -84,10 +79,11 @@ async function seedDatabase() {
 async function startServer() {
   app.use(express.json());
 
-  // Seed database on startup
+  // Servir a pasta public explicitamente para garantir que assets carreguem
+  app.use(express.static(pathNode.join(__dirname, "public")));
+
   seedDatabase().catch(console.error);
 
-  // API Routes
   app.get("/api/mesas", async (req, res) => {
     const { data, error } = await supabase.from("mesas").select("*").order("numero", { ascending: true });
     if (error) return res.status(500).json({ error: error.message });
@@ -96,12 +92,7 @@ async function startServer() {
 
   app.put("/api/mesas/:id", async (req, res) => {
     const { id } = req.params;
-    const updateData = {
-      ...req.body,
-      updated_at: new Date().toISOString()
-    };
-    
-    const { error } = await supabase.from("mesas").update(updateData).eq("id", id);
+    const { error } = await supabase.from("mesas").update({ ...req.body, updated_at: new Date().toISOString() }).eq("id", id);
     if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
   });
@@ -126,12 +117,8 @@ async function startServer() {
   });
 
   app.get("/api/stats", async (req, res) => {
-    const { data: mesas, error: mesaError } = await supabase.from("mesas").select("status, valor_pago");
-    const { data: senhas, error: senhaError } = await supabase.from("senhas").select("valor_total");
-
-    if (mesaError || senhaError) {
-      return res.status(500).json({ error: mesaError?.message || senhaError?.message });
-    }
+    const { data: mesas } = await supabase.from("mesas").select("status, valor_pago");
+    const { data: senhas } = await supabase.from("senhas").select("valor_total");
 
     const stats = {
       totalMesas: mesas?.length || 0,
@@ -142,35 +129,16 @@ async function startServer() {
       arrecadadoSenhas: senhas?.reduce((acc, s) => acc + (s.valor_total || 0), 0) || 0,
     };
 
-    res.json({
-      ...stats,
-      totalGeral: stats.arrecadadoMesas + stats.arrecadadoSenhas
-    });
+    res.json({ ...stats, totalGeral: stats.arrecadadoMesas + stats.arrecadadoSenhas });
   });
 
   app.post("/api/login", async (req, res) => {
     const { username, password } = req.body;
-    
-    const { data, error } = await supabase
-      .from("usuarios")
-      .select("*")
-      .eq("username", username)
-      .eq("password", password)
-      .single();
-
-    if (error) {
-      console.error("[server] Erro de login:", error.message);
-      return res.status(401).json({ success: false, message: "Credenciais inválidas" });
-    }
-
-    if (data) {
-      res.json({ success: true, user: { username: data.username } });
-    } else {
-      res.status(401).json({ success: false, message: "Credenciais inválidas" });
-    }
+    const { data, error } = await supabase.from("usuarios").select("*").eq("username", username).eq("password", password).single();
+    if (error || !data) return res.status(401).json({ success: false, message: "Credenciais inválidas" });
+    res.json({ success: true, user: { username: data.username } });
   });
 
-  // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -178,10 +146,8 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(path.join(__dirname, "dist")));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(__dirname, "dist", "index.html"));
-    });
+    app.use(express.static(pathNode.join(__dirname, "dist")));
+    app.get("*", (req, res) => res.sendFile(pathNode.join(__dirname, "dist", "index.html")));
   }
 
   app.listen(PORT, "0.0.0.0", () => {
