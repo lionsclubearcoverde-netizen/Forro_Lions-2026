@@ -1,16 +1,18 @@
 import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
 
 // --- BANCO DE DADOS EM MEMÓRIA ---
-
-// Inicialização das 60 mesas
 let mesas: any[] = [];
 const SECTORS = ['inferior', 'esquerda', 'direita'];
 
 for (let i = 1; i <= 60; i++) {
-  // Lógica simples para distribuir mesas no mapa (10 colunas x 6 linhas)
   const linha = Math.floor((i - 1) / 10);
   const coluna = (i - 1) % 10;
   
@@ -38,23 +40,15 @@ const usuarios = [
 ];
 
 // --- ROTAS DA API ---
+app.get("/api/health", (req, res) => res.json({ status: "ok", mode: "standalone" }));
 
-app.get("/api/health", (req, res) => res.json({ status: "ok", mode: "in-memory" }));
-
-app.get("/api/mesas", (req, res) => {
-  res.json(mesas);
-});
+app.get("/api/mesas", (req, res) => res.json(mesas));
 
 app.put("/api/mesas/:id", (req, res) => {
   const { id } = req.params;
   const index = mesas.findIndex(m => m.id === parseInt(id));
-  
   if (index !== -1) {
-    mesas[index] = { 
-      ...mesas[index], 
-      ...req.body, 
-      updated_at: new Date().toISOString() 
-    };
+    mesas[index] = { ...mesas[index], ...req.body, updated_at: new Date().toISOString() };
     res.json({ success: true });
   } else {
     res.status(404).json({ message: "Mesa não encontrada" });
@@ -66,11 +60,7 @@ app.get("/api/senhas", (req, res) => {
 });
 
 app.post("/api/senhas", (req, res) => {
-  const novaSenha = {
-    id: Date.now(),
-    ...req.body,
-    created_at: new Date().toISOString()
-  };
+  const novaSenha = { id: Date.now(), ...req.body, created_at: new Date().toISOString() };
   senhas.push(novaSenha);
   res.json({ success: true });
 });
@@ -96,12 +86,28 @@ app.get("/api/stats", (req, res) => {
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
   const user = usuarios.find(u => u.username === username && u.password === password);
-
   if (user) {
     res.json({ success: true, user: { username: user.username } });
   } else {
     res.status(401).json({ message: "Usuário ou senha incorretos" });
   }
+});
+
+// Servir arquivos estáticos do React em produção
+const distPath = path.resolve(__dirname, "dist");
+app.use(express.static(distPath));
+
+// Rota "catch-all" para o React Router
+app.get("*", (req, res) => {
+  if (!req.path.startsWith("/api")) {
+    res.sendFile(path.join(distPath, "index.html"));
+  }
+});
+
+// Iniciar o servidor
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
 
 export default app;
