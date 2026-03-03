@@ -42,11 +42,6 @@ export default function MesaMap() {
     }
   };
 
-  const filteredMesas = mesas.filter(m => 
-    m.responsavel?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.numero.toString().includes(searchTerm)
-  );
-
   const renderMesa = (mesa: Mesa) => {
     const isHighlighted = searchTerm && (
       mesa.responsavel?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -81,7 +76,7 @@ export default function MesaMap() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Mapa de Mesas</h1>
-          <p className="text-gray-500">Gestão visual das 60 mesas do evento.</p>
+          <p className="text-gray-500">Gestão visual conforme o layout oficial do evento.</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -105,17 +100,17 @@ export default function MesaMap() {
       </div>
 
       <div className="bg-white p-4 sm:p-8 rounded-3xl shadow-sm border border-gray-100 overflow-x-auto">
-        <div ref={mapRef} className="min-w-[900px] p-4">
+        <div ref={mapRef} className="min-w-[1000px] p-4">
           <div className="grid grid-cols-12 grid-rows-10 gap-2">
-            {/* Palco */}
-            <div className="col-start-2 col-end-10 row-start-1 flex items-center justify-center border-2 border-black font-bold text-3xl uppercase tracking-widest bg-gray-50">
+            {/* Palco - Topo (Linha 9 no SQL, gridRow 1) */}
+            <div className="col-start-2 col-end-10 row-start-1 flex items-center justify-center border-2 border-black font-bold text-3xl uppercase tracking-widest bg-gray-50 rounded-xl">
               Palco
             </div>
 
-            {/* Dance Floor Area */}
+            {/* Salão de Dança - Centro (Linhas 4-8 no SQL, gridRow 2-6) */}
             <div className="col-start-2 col-end-10 row-start-2 row-end-7 flex items-center justify-center border-2 border-dashed border-gray-200 rounded-3xl bg-gray-50/50">
               <span className="text-gray-400 font-black text-xl uppercase tracking-widest text-center px-4">
-                Dance - Salão da Festa
+                Salão de Dança
               </span>
             </div>
 
