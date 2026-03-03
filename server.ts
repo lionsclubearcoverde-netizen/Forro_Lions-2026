@@ -1,10 +1,5 @@
 import express from "express";
 import { createClient } from "@supabase/supabase-js";
-import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Supabase Client
 const supabaseUrl = "https://wcruelvxcdatzhiftklx.supabase.co";
@@ -16,7 +11,7 @@ const app = express();
 app.use(express.json());
 
 // API Routes
-app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+app.get("/api/health", (req, res) => res.json({ status: "ok", timestamp: new Date().toISOString() }));
 
 app.get("/api/mesas", async (req, res) => {
   try {
@@ -108,10 +103,5 @@ app.post("/api/login", async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
-
-// Produção / Vercel
-if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
-  app.use(express.static(path.resolve(__dirname, "dist")));
-}
 
 export default app;
