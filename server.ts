@@ -9,21 +9,27 @@ const __dirname = path.dirname(__filename);
 
 // Supabase Client Initialization
 const supabaseUrl = "https://wcruelvxcdatzhiftklx.supabase.co";
-// Usamos a chave fornecida como fallback caso a variável de ambiente não esteja definida
 const supabaseKey = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjcnVlbHZ4Y2RhdHpoaWZ0a2x4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NDA1MzAsImV4cCI6MjA4ODAxNjUzMH0.fZS5PDYaslW-60tHd_DtkVRc4f4Qwk5pehLwaotUEY4";
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const app = express();
+app.use(express.json());
 
+// Função de inicialização do banco (Seeding)
 async function seedDatabase() {
   try {
-    console.log("[server] Verificando banco de dados...");
+    const { count: mesaCount, error: countError } = await supabase.from("mesas").select("*", { count: "exact", head: true });
     
-    const { count: mesaCount } = await supabase.from("mesas").select("*", { count: "exact", head: true });
+    if (countError) {
+      console.error("[server] Erro ao acessar tabela mesas:", countError.message);
+      return;
+    }
+
     if (mesaCount === 0) {
       console.log("[server] Criando mesas iniciais...");
       const mesasToInsert = [];
+      // Mesas 1-40 (Setor Inferior)
       for (let r = 0; r < 4; r++) {
         for (let c = 0; c < 10; c++) {
           mesasToInsert.push({
@@ -35,9 +41,11 @@ async function seedDatabase() {
           });
         }
       }
+      // Mesas 41-45 (Setor Esquerda)
       for (let r = 0; r < 5; r++) {
         mesasToInsert.push({ numero: 41 + r, setor: "esquerda", linha: 4 + r, coluna: 0, status: "livre" });
       }
+      // Mesas 46-60 (Setor Direita)
       for (let c = 0; c < 3; c++) {
         for (let r = 0; r < 5; r++) {
           mesasToInsert.push({ numero: 46 + c * 5 + r, setor: "direita", linha: 4 + r, coluna: 9 + c, status: "livre" });
@@ -51,15 +59,10 @@ async function seedDatabase() {
       console.log("[server] Criando usuário admin padrão...");
       await supabase.from("usuarios").insert([{ username: "admin", password: "forro2026" }]);
     }
-    
-    console.log("[server] Banco de dados pronto.");
   } catch (err) {
-    console.error("[server] Erro no seeding:", err);
+    console.error("[server] Erro crítico no seeding:", err);
   }
 }
-
-app.use(express.json());
-app.use(express.static(path.resolve(__dirname, "public")));
 
 // API Routes
 app.get("/api/mesas", async (req, res) => {
@@ -111,29 +114,43 @@ app.get("/api/stats", async (req, res) => {
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
   
-  await seedDatabase();
-
-  const { data, error } = await supabase
-    .from("usuarios")
-    .select("*")
-    .eq("username", username.trim())
-    .eq("password", password.trim());
-
-  if (error) {
-    return res.status(500).json({ success: false, message: "Erro no banco de dados: " + error.message });
+  if (!username || !password) {
+    return res.status(400).json({ success: false, message: "Usuário e senha são obrigatórios" });
   }
 
-  if (!data || data.length === 0) {
-    return res.status(401).json({ success: false, message: "Usuário ou senha incorretos" });
-  }
+  try {
+    const { data, error } = await supabase
+      .from("usuarios")
+      .select("username")
+      .eq("username", username.trim())
+      .eq("password", password.trim())
+      .maybeSingle();
 
-  res.json({ success: true, user: { username: data[0].username } });
+    if (error) {
+      console.error("[server] Erro no login:", error.message);
+      return res.status(500).json({ success: false, message: "Erro de conexão com o banco de dados" });
+    }
+
+    if (!data) {
+      return res.status(401).json({ success: false, message: "Usuário ou senha incorretos" });
+    }
+
+    res.json({ success: true, user: { username: data.username } });
+  } catch (err) {
+    console.error("[server] Erro inesperado no login:", err);
+    res.status(500).json({ success: false, message: "Erro interno do servidor" });
+  }
 });
 
-const startServer = async () => {
-  await seedDatabase();
-  
-  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+// Servir arquivos estáticos em produção
+if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
+  app.use(express.static(path.resolve(__dirname, "dist")));
+}
+
+// Inicialização local
+if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+  const startLocalServer = async () => {
+    await seedDatabase();
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -143,9 +160,8 @@ const startServer = async () => {
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });
-  }
-};
-
-startServer();
+  };
+  startLocalServer();
+}
 
 export default app;
