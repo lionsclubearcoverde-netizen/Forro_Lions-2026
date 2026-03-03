@@ -1,75 +1,84 @@
+import { supabase } from "../integrations/supabase/client";
 import { Mesa, Senha, Stats } from "../types";
-
-const API_URL = "/api";
-
-async function handleResponse(res: Response) {
-  let data;
-  const contentType = res.headers.get("content-type");
-  if (contentType && contentType.indexOf("application/json") !== -1) {
-    data = await res.json();
-  } else {
-    const text = await res.text();
-    // Se for o erro da Vercel, extrai uma mensagem amigável
-    if (text.includes("A server error occurred")) {
-      data = { message: "O servidor da Vercel encontrou um erro interno. Verifique os logs no painel da Vercel." };
-    } else {
-      data = { message: text || "Erro desconhecido no servidor" };
-    }
-  }
-
-  if (!res.ok) {
-    throw new Error(data.message || `Erro ${res.status}`);
-  }
-  return data;
-}
 
 export const api = {
   async getMesas(): Promise<Mesa[]> {
-    const res = await fetch(`${API_URL}/mesas`);
-    return handleResponse(res);
+    const { data, error } = await supabase
+      .from('mesas')
+      .select('*')
+      .order('numero', { ascending: true });
+    
+    if (error) throw error;
+    return data as Mesa[];
   },
 
   async updateMesa(id: number, data: Partial<Mesa>): Promise<void> {
-    const res = await fetch(`${API_URL}/mesas/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    return handleResponse(res);
+    const { error } = await supabase
+      .from('mesas')
+      .update(data)
+      .eq('id', id);
+    
+    if (error) throw error;
   },
 
   async getSenhas(): Promise<Senha[]> {
-    const res = await fetch(`${API_URL}/senhas`);
-    return handleResponse(res);
+    const { data, error } = await supabase
+      .from('senhas')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data as Senha[];
   },
 
   async addSenha(data: Partial<Senha>): Promise<void> {
-    const res = await fetch(`${API_URL}/senhas`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    return handleResponse(res);
+    const { error } = await supabase
+      .from('senhas')
+      .insert([data]);
+    
+    if (error) throw error;
   },
 
   async deleteSenha(id: number): Promise<void> {
-    const res = await fetch(`${API_URL}/senhas/${id}`, {
-      method: "DELETE",
-    });
-    return handleResponse(res);
+    const { error } = await supabase
+      .from('senhas')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
   },
 
   async getStats(): Promise<Stats> {
-    const res = await fetch(`${API_URL}/stats`);
-    return handleResponse(res);
+    const [mesasRes, senhasRes] = await Promise.all([
+      supabase.from('mesas').select('*'),
+      supabase.from('senhas').select('*')
+    ]);
+
+    if (mesasRes.error) throw mesasRes.error;
+    if (senhasRes.error) throw senhasRes.error;
+
+    const mesas = mesasRes.data as Mesa[];
+    const senhas = senhasRes.data as Senha[];
+
+    const stats = {
+      totalMesas: mesas.length,
+      livres: mesas.filter(m => m.status === "livre").length,
+      reservadas: mesas.filter(m => m.status === "reservada").length,
+      pagas: mesas.filter(m => m.status === "paga").length,
+      arrecadadoMesas: mesas.filter(m => m.status === "paga").reduce((acc, m) => acc + (m.valor_pago || 0), 0),
+      arrecadadoSenhas: senhas.reduce((acc, s) => acc + (s.valor_total || 0), 0),
+    };
+
+    return { ...stats, totalGeral: stats.arrecadadoMesas + stats.arrecadadoSenhas };
   },
 
   async login(username: string, password: string): Promise<any> {
-    const res = await fetch(`${API_URL}/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
-    return handleResponse(res);
+    // Para simplificar e manter o acesso rápido, usaremos o Auth do Supabase ou uma verificação simples
+    // Se você quiser usar o Auth real do Supabase, precisará criar um usuário no painel Auth.
+    // Por enquanto, manteremos a lógica de admin/admin para não travar seu acesso.
+    if (username === 'admin' && password === 'admin') {
+      return { user: { username: 'admin' } };
+    }
+    throw new Error("Usuário ou senha incorretos");
   }
 };
