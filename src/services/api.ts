@@ -46,7 +46,11 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
     });
-    if (!res.ok) throw new Error("Credenciais inválidas");
-    return res.json();
+    
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || "Erro ao realizar login");
+    }
+    return data;
   }
 };

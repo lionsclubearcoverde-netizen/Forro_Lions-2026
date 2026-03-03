@@ -16,50 +16,10 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const app = express();
 app.use(express.json());
 
-// Função de inicialização do banco (Seeding)
-async function seedDatabase() {
-  try {
-    const { count: mesaCount, error: countError } = await supabase.from("mesas").select("*", { count: "exact", head: true });
-    
-    if (countError) {
-      console.error("[server] Erro ao acessar tabela mesas:", countError.message);
-      return;
-    }
-
-    if (mesaCount === 0) {
-      console.log("[server] Criando mesas iniciais...");
-      const mesasToInsert = [];
-      for (let r = 0; r < 4; r++) {
-        for (let c = 0; c < 10; c++) {
-          mesasToInsert.push({
-            numero: (r + 1) * 10 - c,
-            setor: "inferior",
-            linha: r,
-            coluna: c,
-            status: "livre"
-          });
-        }
-      }
-      for (let r = 0; r < 5; r++) {
-        mesasToInsert.push({ numero: 41 + r, setor: "esquerda", linha: 4 + r, coluna: 0, status: "livre" });
-      }
-      for (let c = 0; c < 3; c++) {
-        for (let r = 0; r < 5; r++) {
-          mesasToInsert.push({ numero: 46 + c * 5 + r, setor: "direita", linha: 4 + r, coluna: 9 + c, status: "livre" });
-        }
-      }
-      await supabase.from("mesas").insert(mesasToInsert);
-    }
-
-    const { data: users } = await supabase.from("usuarios").select("*").eq("username", "admin");
-    if (!users || users.length === 0) {
-      console.log("[server] Criando usuário admin padrão...");
-      await supabase.from("usuarios").insert([{ username: "admin", password: "forro2026" }]);
-    }
-  } catch (err) {
-    console.error("[server] Erro crítico no seeding:", err);
-  }
-}
+// Rota de teste para verificar se a API está viva
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
 
 // API Routes
 app.get("/api/mesas", async (req, res) => {
@@ -116,7 +76,6 @@ app.post("/api/login", async (req, res) => {
   }
 
   try {
-    // Tenta o login
     const { data, error } = await supabase
       .from("usuarios")
       .select("username")
@@ -125,27 +84,16 @@ app.post("/api/login", async (req, res) => {
       .maybeSingle();
 
     if (error) {
-      return res.status(500).json({ success: false, message: `Erro Supabase: ${error.message}` });
+      return res.status(500).json({ success: false, message: `Erro no Banco: ${error.message}` });
     }
 
     if (!data) {
-      // Se não encontrou o usuário, verifica se a tabela está vazia
-      const { count } = await supabase.from("usuarios").select("*", { count: 'exact', head: true });
-      
-      if (count === 0) {
-        // Se estiver vazia, cria o admin e tenta logar de novo
-        await supabase.from("usuarios").insert([{ username: "admin", password: "forro2026" }]);
-        if (username.trim() === "admin" && password.trim() === "forro2026") {
-          return res.json({ success: true, user: { username: "admin" } });
-        }
-      }
-      
       return res.status(401).json({ success: false, message: "Usuário ou senha incorretos" });
     }
 
-    res.json({ success: true, user: { username: data.username } });
+    return res.json({ success: true, user: { username: data.username } });
   } catch (err: any) {
-    res.status(500).json({ success: false, message: `Erro Interno: ${err.message}` });
+    return res.status(500).json({ success: false, message: `Erro Interno: ${err.message}` });
   }
 });
 
@@ -157,7 +105,6 @@ if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
 // Inicialização local
 if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
   const startLocalServer = async () => {
-    await seedDatabase();
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
