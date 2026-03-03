@@ -13,7 +13,6 @@ const supabaseKey = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cC
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const app = express();
-const PORT = 3000;
 
 async function seedDatabase() {
   try {
@@ -22,6 +21,7 @@ async function seedDatabase() {
 
     if (mesaCount === 0) {
       const mesasToInsert = [];
+      // ... (lógica de seeding mantida)
       for (let r = 0; r < 4; r++) {
         for (let c = 0; c < 10; c++) {
           mesasToInsert.push({
@@ -53,84 +53,78 @@ async function seedDatabase() {
   }
 }
 
-async function startServer() {
-  app.use(express.json());
+app.use(express.json());
+app.use(express.static(path.resolve(__dirname, "public")));
 
-  // Servir arquivos da pasta public explicitamente ANTES do Vite
-  app.use(express.static(path.resolve(__dirname, "public")));
+// API Routes
+app.get("/api/mesas", async (req, res) => {
+  const { data, error } = await supabase.from("mesas").select("*").order("numero", { ascending: true });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
 
-  seedDatabase().catch(console.error);
+app.put("/api/mesas/:id", async (req, res) => {
+  const { id } = req.params;
+  const { error } = await supabase.from("mesas").update({ ...req.body, updated_at: new Date().toISOString() }).eq("id", id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
 
-  // API Routes
-  app.get("/api/mesas", async (req, res) => {
-    const { data, error } = await supabase.from("mesas").select("*").order("numero", { ascending: true });
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data);
-  });
+app.get("/api/senhas", async (req, res) => {
+  const { data, error } = await supabase.from("senhas").select("*").order("created_at", { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
 
-  app.put("/api/mesas/:id", async (req, res) => {
-    const { id } = req.params;
-    const { error } = await supabase.from("mesas").update({ ...req.body, updated_at: new Date().toISOString() }).eq("id", id);
-    if (error) return res.status(500).json({ error: error.message });
-    res.json({ success: true });
-  });
+app.post("/api/senhas", async (req, res) => {
+  const { error } = await supabase.from("senhas").insert([req.body]);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
 
-  app.get("/api/senhas", async (req, res) => {
-    const { data, error } = await supabase.from("senhas").select("*").order("created_at", { ascending: false });
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data);
-  });
+app.delete("/api/senhas/:id", async (req, res) => {
+  const { id } = req.params;
+  const { error } = await supabase.from("senhas").delete().eq("id", id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
 
-  app.post("/api/senhas", async (req, res) => {
-    const { error } = await supabase.from("senhas").insert([req.body]);
-    if (error) return res.status(500).json({ error: error.message });
-    res.json({ success: true });
-  });
+app.get("/api/stats", async (req, res) => {
+  const { data: mesas } = await supabase.from("mesas").select("status, valor_pago");
+  const { data: senhas } = await supabase.from("senhas").select("valor_total");
+  const stats = {
+    totalMesas: mesas?.length || 0,
+    livres: mesas?.filter(m => m.status === "livre").length || 0,
+    reservadas: mesas?.filter(m => m.status === "reservada").length || 0,
+    pagas: mesas?.filter(m => m.status === "paga").length || 0,
+    arrecadadoMesas: mesas?.filter(m => m.status === "paga").reduce((acc, m) => acc + (m.valor_pago || 0), 0) || 0,
+    arrecadadoSenhas: senhas?.reduce((acc, s) => acc + (s.valor_total || 0), 0) || 0,
+  };
+  res.json({ ...stats, totalGeral: stats.arrecadadoMesas + stats.arrecadadoSenhas });
+});
 
-  app.delete("/api/senhas/:id", async (req, res) => {
-    const { id } = req.params;
-    const { error } = await supabase.from("senhas").delete().eq("id", id);
-    if (error) return res.status(500).json({ error: error.message });
-    res.json({ success: true });
-  });
+app.post("/api/login", async (req, res) => {
+  const { username, password } = req.body;
+  const { data, error } = await supabase.from("usuarios").select("*").eq("username", username).eq("password", password).single();
+  if (error || !data) return res.status(401).json({ success: false, message: "Credenciais inválidas" });
+  res.json({ success: true, user: { username: data.username } });
+});
 
-  app.get("/api/stats", async (req, res) => {
-    const { data: mesas } = await supabase.from("mesas").select("status, valor_pago");
-    const { data: senhas } = await supabase.from("senhas").select("valor_total");
-    const stats = {
-      totalMesas: mesas?.length || 0,
-      livres: mesas?.filter(m => m.status === "livre").length || 0,
-      reservadas: mesas?.filter(m => m.status === "reservada").length || 0,
-      pagas: mesas?.filter(m => m.status === "paga").length || 0,
-      arrecadadoMesas: mesas?.filter(m => m.status === "paga").reduce((acc, m) => acc + (m.valor_pago || 0), 0) || 0,
-      arrecadadoSenhas: senhas?.reduce((acc, s) => acc + (s.valor_total || 0), 0) || 0,
-    };
-    res.json({ ...stats, totalGeral: stats.arrecadadoMesas + stats.arrecadadoSenhas });
-  });
-
-  app.post("/api/login", async (req, res) => {
-    const { username, password } = req.body;
-    const { data, error } = await supabase.from("usuarios").select("*").eq("username", username).eq("password", password).single();
-    if (error || !data) return res.status(401).json({ success: false, message: "Credenciais inválidas" });
-    res.json({ success: true, user: { username: data.username } });
-  });
-
-  if (process.env.NODE_ENV !== "production") {
+// Inicialização condicional (apenas localmente)
+if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+  const startLocalServer = async () => {
+    await seedDatabase();
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
-    app.use(express.static(path.resolve(__dirname, "dist")));
-    app.get("*", (req, res) => res.sendFile(path.resolve(__dirname, "dist", "index.html")));
-  }
-
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+    const PORT = 3000;
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  };
+  startLocalServer();
 }
-
-startServer();
 
 export default app;
