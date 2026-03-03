@@ -16,12 +16,13 @@ const app = express();
 
 async function seedDatabase() {
   try {
-    const { count: mesaCount, error: mesaError } = await supabase.from("mesas").select("*", { count: "exact", head: true });
-    if (mesaError) return;
-
+    console.log("[server] Verificando banco de dados...");
+    
+    // Verificar mesas
+    const { count: mesaCount } = await supabase.from("mesas").select("*", { count: "exact", head: true });
     if (mesaCount === 0) {
+      console.log("[server] Criando mesas iniciais...");
       const mesasToInsert = [];
-      // ... (lógica de seeding mantida)
       for (let r = 0; r < 4; r++) {
         for (let c = 0; c < 10; c++) {
           mesasToInsert.push({
@@ -44,12 +45,16 @@ async function seedDatabase() {
       await supabase.from("mesas").insert(mesasToInsert);
     }
 
-    const { count: userCount } = await supabase.from("usuarios").select("*", { count: "exact", head: true });
-    if (userCount === 0) {
+    // Verificar usuário admin
+    const { data: adminUser } = await supabase.from("usuarios").select("*").eq("username", "admin").single();
+    if (!adminUser) {
+      console.log("[server] Criando usuário admin padrão...");
       await supabase.from("usuarios").insert([{ username: "admin", password: "forro2026" }]);
     }
+    
+    console.log("[server] Banco de dados pronto.");
   } catch (err) {
-    console.error("[server] Seeding error:", err);
+    console.error("[server] Erro no seeding:", err);
   }
 }
 
@@ -105,15 +110,34 @@ app.get("/api/stats", async (req, res) => {
 
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
-  const { data, error } = await supabase.from("usuarios").select("*").eq("username", username).eq("password", password).single();
-  if (error || !data) return res.status(401).json({ success: false, message: "Credenciais inválidas" });
+  console.log(`[server] Tentativa de login para: ${username}`);
+  
+  const { data, error } = await supabase
+    .from("usuarios")
+    .select("*")
+    .eq("username", username)
+    .eq("password", password)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[server] Erro na consulta de login:", error);
+    return res.status(500).json({ success: false, message: "Erro interno no servidor" });
+  }
+
+  if (!data) {
+    console.log("[server] Login falhou: usuário ou senha incorretos");
+    return res.status(401).json({ success: false, message: "Credenciais inválidas" });
+  }
+
+  console.log("[server] Login bem-sucedido!");
   res.json({ success: true, user: { username: data.username } });
 });
 
-// Inicialização condicional (apenas localmente)
-if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
-  const startLocalServer = async () => {
-    await seedDatabase();
+// Inicialização
+const startServer = async () => {
+  await seedDatabase();
+  
+  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -123,8 +147,9 @@ if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });
-  };
-  startLocalServer();
-}
+  }
+};
+
+startServer();
 
 export default app;
