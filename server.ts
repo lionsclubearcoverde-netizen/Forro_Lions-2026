@@ -45,9 +45,9 @@ async function seedDatabase() {
       await supabase.from("mesas").insert(mesasToInsert);
     }
 
-    // Verificar usuário admin
-    const { data: adminUser } = await supabase.from("usuarios").select("*").eq("username", "admin").single();
-    if (!adminUser) {
+    // Verificar usuário admin - Usando select normal para evitar erros de single()
+    const { data: users } = await supabase.from("usuarios").select("*").eq("username", "admin");
+    if (!users || users.length === 0) {
       console.log("[server] Criando usuário admin padrão...");
       await supabase.from("usuarios").insert([{ username: "admin", password: "forro2026" }]);
     }
@@ -112,25 +112,27 @@ app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
   console.log(`[server] Tentativa de login para: ${username}`);
   
+  // Garantir que o seed rodou (importante para Vercel Serverless)
+  await seedDatabase();
+
   const { data, error } = await supabase
     .from("usuarios")
     .select("*")
-    .eq("username", username)
-    .eq("password", password)
-    .maybeSingle();
+    .eq("username", username.trim())
+    .eq("password", password.trim());
 
   if (error) {
     console.error("[server] Erro na consulta de login:", error);
-    return res.status(500).json({ success: false, message: "Erro interno no servidor" });
+    return res.status(500).json({ success: false, message: "Erro no banco de dados: " + error.message });
   }
 
-  if (!data) {
+  if (!data || data.length === 0) {
     console.log("[server] Login falhou: usuário ou senha incorretos");
     return res.status(401).json({ success: false, message: "Credenciais inválidas" });
   }
 
   console.log("[server] Login bem-sucedido!");
-  res.json({ success: true, user: { username: data.username } });
+  res.json({ success: true, user: { username: data[0].username } });
 });
 
 // Inicialização
