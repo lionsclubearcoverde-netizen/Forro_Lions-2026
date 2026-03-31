@@ -88,38 +88,16 @@ export default function Relatorios() {
       return;
     }
 
-    // Calcula os tamanhos máximos para alinhamento das colunas
-    const maxNome = Math.max(
-      4, // tamanho mínimo da palavra "NOME"
-      ...mesasOcupadas.map(m => (m.responsavel || 'N/A').length)
-    );
-    const maxNum = Math.max(
-      2, // tamanho mínimo da palavra "Nº"
-      ...mesasOcupadas.map(m => String(m.numero).length)
-    );
-
-    // Usa a formatação monoespaçada (```) do WhatsApp para garantir um alinhamento perfeito
     let text = "*RELAÇÃO DE MESAS - LIONS ARCOVERDE*\n\n";
-    text += "```\n";
-    text += "-".repeat(maxNome + maxNum + 16) + "\n";
-    
-    const headerNome = "NOME".padEnd(maxNome, ' ');
-    const headerNum = "Nº".padEnd(maxNum, ' ');
-    text += `${headerNome} | ${headerNum} | SITUAÇÃO\n`;
-    
-    text += "-".repeat(maxNome + maxNum + 16) + "\n";
     
     mesasOcupadas.forEach(m => {
       const statusLabel = m.status === 'paga' ? 'Paga' : 'Reservada';
-      const nome = (m.responsavel || 'N/A').padEnd(maxNome, ' ');
-      const num = String(m.numero).padEnd(maxNum, ' ');
+      const nome = m.responsavel || 'N/A';
       
-      text += `${nome} | ${num} | ${statusLabel}\n`;
+      text += `*Mesa ${m.numero}* - ${nome} (${statusLabel})\n`;
     });
     
-    text += "-".repeat(maxNome + maxNum + 16) + "\n";
-    text += `Total: ${mesasOcupadas.length} mesas\n`;
-    text += "```";
+    text += `\n*Total:* ${mesasOcupadas.length} mesas`;
 
     navigator.clipboard.writeText(text).then(() => {
       toast.success("Relação copiada para o WhatsApp!");
