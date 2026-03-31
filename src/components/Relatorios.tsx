@@ -88,7 +88,7 @@ export default function Relatorios() {
       return;
     }
 
-    let text = "*RELAÇÃO DE MESAS - LIONS ARCOVERDE*\n\n";
+    let text = "*RELAÇÃO DE MESAS - FORRÓ LIONS 2026*\n\n";
     
     mesasOcupadas.forEach(m => {
       const statusLabel = m.status === 'paga' ? 'Paga' : 'Reservada';
