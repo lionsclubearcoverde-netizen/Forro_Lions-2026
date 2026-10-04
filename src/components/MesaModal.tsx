@@ -1,11 +1,14 @@
 import { useState } from "react";
 import type { Mesa, MesaStatus } from "../types";
 import { api } from "../services/api";
-import { VALOR_MESA, FORMAS_PAGAMENTO, STATUS_COLORS } from "../constants";
-import { User, Phone, CreditCard, DollarSign, Calendar, CheckCircle } from "lucide-react";
+import { VALOR_MESA, FORMAS_PAGAMENTO, STATUS_STYLES } from "../constants";
+import { User, Phone, CreditCard, DollarSign, Calendar, CheckCircle, X } from "lucide-react";
 import toast from "react-hot-toast";
-import Modal, { ModalCloseButton } from "./ui/Modal";
+import Modal from "./ui/Modal";
 import Field, { inputClass, selectClass } from "./ui/Field";
+import ConfirmDialog from "./ui/ConfirmDialog";
+import StatusBadge from "./ui/StatusBadge";
+import Spinner from "./ui/Spinner";
 import { formatBRL, maskPhone, normalizeName, parseDecimal, getErrorMessage } from "../lib/utils";
 
 interface MesaModalProps {
@@ -15,7 +18,7 @@ interface MesaModalProps {
 }
 
 export default function MesaModal({ mesa, onClose, onUpdate }: MesaModalProps) {
-  const [status, setStatus] = useState<MesaStatus>(mesa.status);
+  const [status] = useState<MesaStatus>(mesa.status);
   const [responsavel, setResponsavel] = useState(mesa.responsavel || "");
   const [telefone, setTelefone] = useState(mesa.telefone || "");
   const [formaPagamento, setFormaPagamento] = useState<string>(
@@ -23,6 +26,7 @@ export default function MesaModal({ mesa, onClose, onUpdate }: MesaModalProps) {
   );
   const [valorPago, setValorPago] = useState<string>(String(mesa.valor_pago || VALOR_MESA));
   const [loading, setLoading] = useState(false);
+  const [confirmRelease, setConfirmRelease] = useState(false);
 
   async function save(newStatus: MesaStatus) {
     if (newStatus !== "livre" && !normalizeName(responsavel)) {
@@ -51,6 +55,7 @@ export default function MesaModal({ mesa, onClose, onUpdate }: MesaModalProps) {
       await api.updateMesa(mesa.id, updateData);
       toast.success(`Mesa ${mesa.numero} atualizada com sucesso!`, { id: loadingToast });
       onUpdate();
+      if (newStatus === "livre") onClose();
     } catch (err) {
       toast.error(getErrorMessage(err, "Erro ao atualizar mesa."), { id: loadingToast });
     } finally {
@@ -58,130 +63,157 @@ export default function MesaModal({ mesa, onClose, onUpdate }: MesaModalProps) {
     }
   }
 
-  const handleLiberar = () => {
-    if (window.confirm(`Deseja realmente liberar a mesa ${mesa.numero}? Todos os dados serão limpos.`)) {
-      save("livre");
-    }
-  };
+  const style = STATUS_STYLES[status];
 
   return (
-    <Modal onClose={onClose} labelledBy="mesa-modal-title">
-      <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-xl"
-            style={{ backgroundColor: STATUS_COLORS[status] }}
-            aria-hidden="true"
-          >
-            {mesa.numero}
-          </div>
-          <div>
-            <h2 id="mesa-modal-title" className="text-xl font-bold text-gray-900">
-              Mesa {mesa.numero}
-            </h2>
-            <p className="text-xs text-gray-500 uppercase tracking-widest font-bold">
-              Setor: {mesa.setor}
-            </p>
-          </div>
-        </div>
-        <ModalCloseButton onClose={onClose} />
-      </div>
-
-      <div className="p-6 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Responsável" icon={<User size={16} />} htmlFor="mesa-responsavel">
-            <input
-              id="mesa-responsavel"
-              type="text"
-              className={inputClass}
-              placeholder="Nome completo"
-              value={responsavel}
-              onChange={(e) => setResponsavel(e.target.value)}
-              maxLength={120}
-            />
-          </Field>
-          <Field label="Telefone" icon={<Phone size={16} />} htmlFor="mesa-telefone">
-            <input
-              id="mesa-telefone"
-              type="tel"
-              inputMode="numeric"
-              className={inputClass}
-              placeholder="(00) 00000-0000"
-              value={telefone}
-              onChange={(e) => setTelefone(maskPhone(e.target.value))}
-            />
-          </Field>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Forma de Pagamento" icon={<CreditCard size={16} />} htmlFor="mesa-pagamento">
-            <select
-              id="mesa-pagamento"
-              className={selectClass}
-              value={formaPagamento}
-              onChange={(e) => setFormaPagamento(e.target.value)}
-            >
-              {FORMAS_PAGAMENTO.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Valor" icon={<DollarSign size={16} />} htmlFor="mesa-valor">
-            <input
-              id="mesa-valor"
-              type="text"
-              inputMode="decimal"
-              className={inputClass}
-              value={valorPago}
-              onChange={(e) => setValorPago(e.target.value)}
-              onBlur={() => setValorPago(parseDecimal(valorPago).toFixed(2))}
-            />
-          </Field>
-        </div>
-
-        {mesa.data_reserva && (
-          <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-3 rounded-xl">
-            <Calendar size={14} aria-hidden="true" />
-            <span>Reservada em: {new Date(mesa.data_reserva).toLocaleString("pt-BR")}</span>
-          </div>
-        )}
-        {mesa.data_pagamento && (
-          <div className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 p-3 rounded-xl font-medium">
-            <CheckCircle size={14} aria-hidden="true" />
-            <span>
-              Paga em: {new Date(mesa.data_pagamento).toLocaleString("pt-BR")} ({formatBRL(mesa.valor_pago)})
-            </span>
-          </div>
-        )}
-      </div>
-
-      <div className="p-6 bg-gray-50 flex flex-wrap gap-3 justify-between">
-        <button
-          onClick={handleLiberar}
-          disabled={loading || status === "livre"}
-          className="px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 rounded-xl transition-colors disabled:opacity-50"
+    <>
+      <Modal onClose={onClose} labelledBy="mesa-modal-title">
+        {/* Cabeçalho com cor de status */}
+        <div
+          className="flex items-center justify-between gap-3 px-6 py-5"
+          style={{ backgroundColor: style.solid }}
         >
-          Liberar Mesa
-        </button>
-        <div className="flex gap-3">
+          <div className="flex items-center gap-4 text-white">
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/15 font-display text-xl font-black ring-1 ring-white/25 backdrop-blur-sm">
+              {mesa.numero}
+            </div>
+            <div>
+              <h2 id="mesa-modal-title" className="font-display text-lg font-bold leading-tight">
+                Mesa {mesa.numero}
+              </h2>
+              <p className="text-xs font-semibold uppercase tracking-widest text-white/75">
+                Setor {mesa.setor} · {style.label}
+              </p>
+            </div>
+          </div>
           <button
-            onClick={() => save("reservada")}
-            disabled={loading || status === "paga"}
-            className="px-6 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-bold rounded-xl transition-colors shadow-lg shadow-yellow-100 disabled:opacity-50"
+            onClick={onClose}
+            aria-label="Fechar"
+            className="rounded-full p-2 text-white/80 transition-colors hover:bg-white/15 hover:text-white"
           >
-            Reservar
-          </button>
-          <button
-            onClick={() => save("paga")}
-            disabled={loading}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-colors shadow-lg shadow-blue-100 disabled:opacity-50"
-          >
-            Confirmar Pagamento
+            <X size={20} />
           </button>
         </div>
-      </div>
-    </Modal>
+
+        <div className="space-y-4 p-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Responsável" icon={<User size={16} />} htmlFor="mesa-responsavel">
+              <input
+                id="mesa-responsavel"
+                type="text"
+                className={inputClass}
+                placeholder="Nome completo"
+                value={responsavel}
+                onChange={(e) => setResponsavel(e.target.value)}
+                maxLength={120}
+              />
+            </Field>
+            <Field label="Telefone" icon={<Phone size={16} />} htmlFor="mesa-telefone">
+              <input
+                id="mesa-telefone"
+                type="tel"
+                inputMode="tel"
+                className={inputClass}
+                placeholder="(00) 00000-0000"
+                value={telefone}
+                onChange={(e) => setTelefone(maskPhone(e.target.value))}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Forma de Pagamento" icon={<CreditCard size={16} />} htmlFor="mesa-pagamento">
+              <select
+                id="mesa-pagamento"
+                className={selectClass}
+                value={formaPagamento}
+                onChange={(e) => setFormaPagamento(e.target.value)}
+              >
+                {FORMAS_PAGAMENTO.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Valor" icon={<DollarSign size={16} />} htmlFor="mesa-valor">
+              <input
+                id="mesa-valor"
+                type="text"
+                inputMode="decimal"
+                className={inputClass}
+                value={valorPago}
+                onChange={(e) => setValorPago(e.target.value)}
+                onBlur={() => setValorPago(parseDecimal(valorPago).toFixed(2))}
+              />
+            </Field>
+          </div>
+
+          {mesa.data_reserva && (
+            <div className="flex items-center gap-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-600 ring-1 ring-slate-100">
+              <Calendar size={14} aria-hidden="true" className="text-slate-400" />
+              <span>Reservada em: {new Date(mesa.data_reserva).toLocaleString("pt-BR")}</span>
+            </div>
+          )}
+          {mesa.data_pagamento && (
+            <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-xs font-medium text-emerald-800 ring-1 ring-emerald-100">
+              <CheckCircle size={14} aria-hidden="true" />
+              <span>
+                Paga em: {new Date(mesa.data_pagamento).toLocaleString("pt-BR")} ·{" "}
+                {formatBRL(mesa.valor_pago)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Ações fixas na base do painel (alcançáveis no celular) */}
+        <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/95 p-4 backdrop-blur-sm sm:px-6">
+          <button
+            onClick={() => setConfirmRelease(true)}
+            disabled={loading || status === "livre"}
+            className="btn min-h-11 bg-transparent text-red-600 hover:bg-red-50 sm:min-h-10"
+          >
+            Liberar Mesa
+          </button>
+          <div className="flex flex-1 gap-3 sm:flex-none">
+            <button
+              onClick={() => save("reservada")}
+              disabled={loading || status === "paga"}
+              className="btn btn-outline flex-1 border-amber-300 bg-amber-50 text-amber-800 hover:border-amber-400 hover:bg-amber-100 sm:px-6"
+            >
+              {loading ? <Spinner size={16} /> : null}
+              Reservar
+            </button>
+            <button
+              onClick={() => save("paga")}
+              disabled={loading}
+              className="btn btn-primary flex-1 sm:px-6"
+            >
+              {loading ? <Spinner size={16} /> : <CheckCircle size={16} />}
+              Confirmar Pagto.
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {confirmRelease && (
+        <ConfirmDialog
+          title={`Liberar mesa ${mesa.numero}?`}
+          message={
+            <>
+              Todos os dados da reserva/pagamento serão apagados e a mesa voltará a ficar{" "}
+              <StatusBadge status="livre" /> .
+            </>
+          }
+          confirmLabel="Liberar Mesa"
+          tone="danger"
+          onConfirm={() => save("livre")}
+          onCancel={() => setConfirmRelease(false)}
+        />
+      )}
+    </>
   );
 }
+
+// Import separado para manter o ícone do botão fechar visível acima.
+import { X } from "lucide-react";

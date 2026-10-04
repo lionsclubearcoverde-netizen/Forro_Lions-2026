@@ -3,10 +3,12 @@ import type { FormEvent } from "react";
 import { api } from "../services/api";
 import type { Senha } from "../types";
 import { VALOR_SENHA, FORMAS_PAGAMENTO } from "../constants";
-import { Ticket, Plus, Trash2, Search, User, Phone, CreditCard } from "lucide-react";
+import { Ticket, Plus, Trash2, Search, User, Phone, CreditCard, Users, Wallet } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import toast from "react-hot-toast";
 import Modal, { ModalCloseButton } from "./ui/Modal";
+import ConfirmDialog from "./ui/ConfirmDialog";
+import Spinner from "./ui/Spinner";
 import Field, { inputClass, selectClass } from "./ui/Field";
 import LoadingState from "./ui/LoadingState";
 import ErrorState from "./ui/ErrorState";
@@ -21,13 +23,14 @@ export default function SenhasModule() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [senhaToDelete, setSenhaToDelete] = useState<Senha | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [quantidade, setQuantidade] = useState(1);
   const [formaPagamento, setFormaPagamento] = useState<string>(FORMAS_PAGAMENTO[0]);
-  const [saving, setSaving] = useState(false);
 
   const fetchSenhas = useCallback(async () => {
     try {
@@ -78,13 +81,7 @@ export default function SenhasModule() {
   };
 
   const handleDelete = async (senha: Senha) => {
-    if (
-      !window.confirm(
-        `Deseja realmente excluir a venda de ${senha.nome} (${senha.quantidade}x senhas)?`
-      )
-    )
-      return;
-
+    setSenhaToDelete(null);
     const loadingToast = toast.loading("Excluindo venda...");
     try {
       await api.deleteSenha(senha.id);
@@ -110,44 +107,44 @@ export default function SenhasModule() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Venda de Senhas Individuais</h1>
-          <p className="text-gray-500">Gestão de ingressos avulsos ({formatBRL(VALOR_SENHA)} cada).</p>
+          <h1 className="page-title">Venda de Senhas</h1>
+          <p className="page-subtitle">
+            Gestão de ingressos avulsos — {formatBRL(VALOR_SENHA)} por senha.
+          </p>
         </div>
         <button
           onClick={() => setIsAdding(true)}
-          className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-100 transition-all"
+          className="btn btn-primary min-h-12 px-6 sm:min-h-10"
         >
-          <Plus size={20} />
+          <Plus size={18} />
           Nova Venda
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6">
-              Resumo de Senhas
-            </h3>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
+        <div className="lg:col-span-1 space-y-4 lg:space-y-6">
+          <div className="card p-5 lg:p-6">
+            <h3 className="section-label mb-4 lg:mb-6">Resumo de Senhas</h3>
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-2xl">
+              <div className="flex items-center justify-between rounded-xl bg-brand-50 p-4 ring-1 ring-brand-100">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-600 text-white rounded-lg">
+                  <div className="grid h-9 w-9 place-items-center rounded-lg bg-brand-600 text-white">
                     <Ticket size={18} />
                   </div>
-                  <span className="text-sm font-medium text-blue-700">Total Vendidas</span>
+                  <span className="text-sm font-semibold text-brand-800">Total Vendidas</span>
                 </div>
-                <span className="text-xl font-black text-blue-900">{totalQuantidade}</span>
+                <span className="font-display text-xl font-bold tabular-nums text-brand-900">{totalQuantidade}</span>
               </div>
-              <div className="flex items-center justify-between p-4 bg-green-50 rounded-2xl">
+              <div className="flex items-center justify-between rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-100">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-600 text-white rounded-lg">
-                    <CreditCard size={18} />
+                  <div className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-600 text-white">
+                    <Wallet size={18} />
                   </div>
-                  <span className="text-sm font-medium text-green-700">Total Arrecadado</span>
+                  <span className="text-sm font-semibold text-emerald-800">Total Arrecadado</span>
                 </div>
-                <span className="text-xl font-black text-green-900">
+                <span className="font-display text-lg font-bold tabular-nums text-emerald-900 lg:text-xl">
                   {formatBRL(totalArrecadado)}
                 </span>
               </div>

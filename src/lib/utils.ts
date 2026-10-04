@@ -51,9 +51,39 @@ export function normalizeName(input: string): string {
   return input.trim().replace(/\s+/g, " ");
 }
 
+/**
+ * Traduz erros conhecidos do Supabase Auth / rede para mensagens claras em português.
+ * "Failed to fetch" quase sempre é problema de configuração ou de rede — nunca credencial errada.
+ */
+export function translateAuthError(raw: string): string {
+  const msg = raw.toLowerCase();
+
+  if (msg.includes("failed to fetch") || msg.includes("networkerror") || msg.includes("load failed")) {
+    return (
+      "Não foi possível conectar ao servidor (Failed to fetch). Causas mais comuns:\n" +
+      "1) A chave do Supabase não está configurada no ambiente de deploy — defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY nas variáveis de ambiente (Vercel → Settings → Environment Variables) e faça novo deploy.\n" +
+      "2) Sem conexão com a internet ou o acesso ao domínio *.supabase.co está bloqueado na sua rede.\n" +
+      "3) URL do projeto incorreta."
+    );
+  }
+  if (msg.includes("invalid login credentials")) {
+    return "E-mail ou senha incorretos. Verifique os dados digitados.";
+  }
+  if (msg.includes("email not confirmed")) {
+    return "Este e-mail ainda não foi confirmado. Verifique sua caixa de entrada.";
+  }
+  if (msg.includes("rate limit") || msg.includes("too many requests")) {
+    return "Muitas tentativas seguidas. Aguarde alguns minutos e tente novamente.";
+  }
+  if (msg.includes("fetch is not enabled") || msg.includes("unsupported")) {
+    return "Navegador desatualizado. Atualize o navegador e tente novamente.";
+  }
+  return raw;
+}
+
 /** Extrai uma mensagem legível de qualquer erro lançado (Error, PostgrestError, string...). */
 export function getErrorMessage(err: unknown, fallback = "Ocorreu um erro inesperado."): string {
-  if (err instanceof Error) return err.message;
+  if (err instanceof Error) return translateAuthError(err.message);
   if (typeof err === "string") return err;
   if (err && typeof err === "object") {
     const record = err as Record<string, unknown>;

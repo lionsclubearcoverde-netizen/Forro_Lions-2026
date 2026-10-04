@@ -10,6 +10,8 @@ import { motion } from "motion/react";
 import toast from "react-hot-toast";
 import LoadingState from "./ui/LoadingState";
 import ErrorState from "./ui/ErrorState";
+import BrandMark from "./ui/BrandMark";
+import ConfirmDialog from "./ui/ConfirmDialog";
 import { useRealtime } from "../hooks/useRealtime";
 import { formatBRL, percentage, getErrorMessage } from "../lib/utils";
 
@@ -25,6 +27,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
   const [statsError, setStatsError] = useState<string | null>(null);
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -46,8 +49,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   useRealtime("mesas", fetchStats);
   useRealtime("senhas", fetchStats);
 
-  const handleLogout = async () => {
-    if (!window.confirm("Deseja realmente sair do sistema?")) return;
+  const doLogout = async () => {
+    setConfirmLogout(false);
     try {
       await api.logout();
       onLogout();
@@ -57,49 +60,57 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     }
   };
 
-  const tabs: Array<{ id: Tab; label: string; icon: ReactNode }> = [
-    { id: "dashboard", label: "Visão Geral", icon: <LayoutDashboard size={18} /> },
-    { id: "mapa", label: "Mapa de Mesas", icon: <MapIcon size={18} /> },
-    { id: "senhas", label: "Venda de Senhas", icon: <Ticket size={18} /> },
-    { id: "relatorios", label: "Relatórios", icon: <BarChart3 size={18} /> },
+  const tabs: Array<{ id: Tab; label: string; shortLabel: string; icon: ReactNode }> = [
+    { id: "dashboard", label: "Visão Geral", shortLabel: "Início", icon: <LayoutDashboard size={18} /> },
+    { id: "mapa", label: "Mapa de Mesas", shortLabel: "Mesas", icon: <MapIcon size={18} /> },
+    { id: "senhas", label: "Venda de Senhas", shortLabel: "Senhas", icon: <Ticket size={18} /> },
+    { id: "relatorios", label: "Relatórios", shortLabel: "Relatos", icon: <BarChart3 size={18} /> },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+    <div className="min-h-dvh bg-canvas">
       {/* Sidebar Desktop */}
-      <aside className="hidden md:flex w-64 bg-white border-r border-gray-200 flex-col p-6 sticky top-0 h-screen">
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xl">
-            L
-          </div>
-          <h1 className="font-black text-xl tracking-tighter text-gray-900">Gestão Lions</h1>
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-200/80 bg-white p-6 md:flex lg:hidden xl:flex">
+        <div className="mb-10 mt-1">
+          <BrandMark size={40} withWordmark />
         </div>
 
-        <nav className="flex-1 space-y-2" aria-label="Navegação principal">
+        <nav className="flex-1 space-y-1.5" aria-label="Navegação principal">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               aria-current={activeTab === tab.id ? "page" : undefined}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+              className={`flex w-full touch-target items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
                 activeTab === tab.id
-                  ? "bg-blue-50 text-blue-600"
-                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                  ? "bg-brand-50 text-brand-700 shadow-[inset_0_0_0_1px] shadow-brand-100"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
-              {tab.icon}
+              <span className={activeTab === tab.id ? "text-brand-600" : ""}>{tab.icon}</span>
               {tab.label}
+              {activeTab === tab.id && (
+                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-brand-500" aria-hidden="true" />
+              )}
             </button>
           ))}
         </nav>
 
-        <div className="mt-auto pt-6 border-t border-gray-100">
-          <p className="text-xs text-gray-400 truncate mb-3" title={user.email ?? ""}>
-            {user.email}
-          </p>
+        <div className="mt-auto border-t border-slate-100 pt-5">
+          <div className="mb-4 flex items-center gap-3 rounded-xl bg-slate-50 p-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-100 text-xs font-black text-brand-700" aria-hidden="true">
+              {(user.email ?? "?").slice(0, 1).toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-xs font-bold text-slate-700" title={user.email ?? ""}>
+                {user.email}
+              </p>
+              <p className="text-[11px] text-slate-400">Operador autorizado</p>
+            </div>
+          </div>
           <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl text-sm font-bold transition-colors"
+            onClick={() => setConfirmLogout(true)}
+            className="btn btn-ghost w-full justify-start text-red-600 hover:bg-red-50 hover:text-red-700"
           >
             <LogOut size={18} />
             Sair do Sistema
@@ -107,172 +118,203 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         </div>
       </aside>
 
-      {/* Header Mobile */}
-      <header className="md:hidden bg-white border-b border-gray-200 p-4 sticky top-0 z-50">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
-              L
-            </div>
-            <span className="font-black text-lg tracking-tighter">Gestão Lions</span>
-          </div>
+      {/* Header Mobile (topo) + Bottom Navigation (celular) */}
+      <header className="sticky top-0 z-50 flex items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 py-3 backdrop-blur-md md:hidden">
+        <BrandMark size={34} withWordmark />
+        <button
+          onClick={() => setConfirmLogout(true)}
+          aria-label="Sair do sistema"
+          className="btn btn-ghost h-10 w-10 rounded-full !px-0 text-slate-500 hover:bg-red-50 hover:text-red-600"
+        >
+          <LogOut size={19} />
+        </button>
+      </header>
+
+      <nav
+        aria-label="Navegação principal"
+        className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-4 border-t border-slate-200/80 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
+      >
+        {tabs.map((tab) => (
           <button
-            onClick={handleLogout}
-            aria-label="Sair do sistema"
-            className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            aria-current={activeTab === tab.id ? "page" : undefined}
+            className={`flex min-h-[56px] flex-col items-center justify-center gap-1 py-2 text-[11px] font-bold transition-colors ${
+              activeTab === tab.id ? "text-brand-700" : "text-slate-400"
+            }`}
           >
-            <LogOut size={20} />
-          </button>
-        </div>
-        <nav className="flex overflow-x-auto gap-2 pb-1" aria-label="Navegação principal">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              aria-current={activeTab === tab.id ? "page" : undefined}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
-                activeTab === tab.id
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-500"
+            <span
+              className={`grid h-8 w-14 place-items-center rounded-full transition-colors ${
+                activeTab === tab.id ? "bg-brand-100/80" : ""
               }`}
             >
               {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </header>
+            </span>
+            {tab.shortLabel}
+          </button>
+        ))}
+      </nav>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 sm:p-6 lg:p-10 overflow-y-auto">
-        {activeTab === "dashboard" && (
-          <div className="space-y-8">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Visão Geral</h1>
-              <p className="text-gray-500">Acompanhe o desempenho das vendas em tempo real.</p>
+      <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6 md:ml-64 md:min-h-dvh md:max-w-none md:pb-10 md:pt-10 lg:px-10 xl:pl-80 xl:pr-12">
+        <div className="mx-auto max-w-6xl">
+          {activeTab === "dashboard" && (
+            <div className="space-y-8">
+              <div>
+                <h1 className="page-title">Visão Geral</h1>
+                <p className="page-subtitle">
+                  Acompanhe o desempenho das vendas em tempo real.
+                </p>
+              </div>
+
+              {loadingStats ? (
+                <LoadingState label="Calculando indicadores..." />
+              ) : statsError ? (
+                <ErrorState message={statsError} onRetry={fetchStats} />
+              ) : stats ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+                    <StatCard
+                      title="Mesas Livres"
+                      value={String(stats.livres)}
+                      subtitle={`${percentage(stats.livres, stats.totalMesas)}% do total`}
+                      accent="emerald"
+                    />
+                    <StatCard
+                      title="Reservadas"
+                      value={String(stats.reservadas)}
+                      subtitle={`${percentage(stats.reservadas, stats.totalMesas)}% do total`}
+                      accent="amber"
+                    />
+                    <StatCard
+                      title="Pagas"
+                      value={String(stats.pagas)}
+                      subtitle={`${percentage(stats.pagas, stats.totalMesas)}% do total`}
+                      accent="brand"
+                    />
+                    <StatCard
+                      title="Arrecadação"
+                      value={formatBRL(stats.totalGeral)}
+                      subtitle={`Mesas ${formatBRL(stats.arrecadadoMesas)} · Senhas ${formatBRL(stats.arrecadadoSenhas)}`}
+                      accent="violet"
+                      compactValue
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+                    <section className="card p-6">
+                      <h3 className="section-label mb-6">Ocupação de Mesas</h3>
+                      <div className="space-y-6">
+                        <ProgressBar
+                          label="Total Ocupado"
+                          value={stats.reservadas + stats.pagas}
+                          max={stats.totalMesas}
+                          barClass="bg-gradient-to-r from-brand-500 to-brand-700"
+                        />
+                        <ProgressBar
+                          label="Disponível"
+                          value={stats.livres}
+                          max={stats.totalMesas}
+                          barClass="bg-gradient-to-r from-emerald-400 to-emerald-600"
+                        />
+                      </div>
+                    </section>
+
+                    <section className="card p-6">
+                      <h3 className="section-label mb-6">Distribuição Financeira</h3>
+                      <div className="space-y-6">
+                        <ProgressBar
+                          label="Vendas de Mesas"
+                          value={Math.round(stats.arrecadadoMesas)}
+                          max={Math.max(1, Math.round(stats.totalGeral))}
+                          barClass="bg-gradient-to-r from-brand-400 to-brand-600"
+                          isCurrency
+                        />
+                        <ProgressBar
+                          label="Vendas de Senhas"
+                          value={Math.round(stats.arrecadadoSenhas)}
+                          max={Math.max(1, Math.round(stats.totalGeral))}
+                          barClass="bg-gradient-to-r from-violet-400 to-violet-600"
+                          isCurrency
+                        />
+                      </div>
+                    </section>
+                  </div>
+                </>
+              ) : null}
             </div>
+          )}
 
-            {loadingStats ? (
-              <LoadingState label="Calculando indicadores..." />
-            ) : statsError ? (
-              <ErrorState message={statsError} onRetry={fetchStats} />
-            ) : stats ? (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <StatCard
-                    title="Mesas Livres"
-                    value={String(stats.livres)}
-                    subtitle={`${percentage(stats.livres, stats.totalMesas)}% do total`}
-                    color="green"
-                  />
-                  <StatCard
-                    title="Reservadas"
-                    value={String(stats.reservadas)}
-                    subtitle={`${percentage(stats.reservadas, stats.totalMesas)}% do total`}
-                    color="yellow"
-                  />
-                  <StatCard
-                    title="Pagas"
-                    value={String(stats.pagas)}
-                    subtitle={`${percentage(stats.pagas, stats.totalMesas)}% do total`}
-                    color="blue"
-                  />
-                  <StatCard
-                    title="Arrecadação Total"
-                    value={formatBRL(stats.totalGeral)}
-                    subtitle={`Mesas: ${formatBRL(stats.arrecadadoMesas)} • Senhas: ${formatBRL(stats.arrecadadoSenhas)}`}
-                    color="purple"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6">
-                      Ocupação de Mesas
-                    </h3>
-                    <div className="space-y-6">
-                      <ProgressBar
-                        label="Total Ocupado"
-                        value={stats.reservadas + stats.pagas}
-                        max={stats.totalMesas}
-                        barClass="bg-blue-600"
-                      />
-                      <ProgressBar
-                        label="Disponível"
-                        value={stats.livres}
-                        max={stats.totalMesas}
-                        barClass="bg-green-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6">
-                      Distribuição Financeira
-                    </h3>
-                    <div className="space-y-6">
-                      <ProgressBar
-                        label="Vendas de Mesas"
-                        value={Math.round(stats.arrecadadoMesas)}
-                        max={Math.max(1, Math.round(stats.totalGeral))}
-                        barClass="bg-blue-500"
-                        isCurrency
-                      />
-                      <ProgressBar
-                        label="Vendas de Senhas"
-                        value={Math.round(stats.arrecadadoSenhas)}
-                        max={Math.max(1, Math.round(stats.totalGeral))}
-                        barClass="bg-purple-500"
-                        isCurrency
-                      />
-                    </div>
-                  </div>
-                </div>
-              </>
-            ) : null}
-          </div>
-        )}
-
-        {activeTab === "mapa" && <MesaMap />}
-        {activeTab === "senhas" && <SenhasModule />}
-        {activeTab === "relatorios" && <Relatorios />}
+          {activeTab === "mapa" && <MesaMap />}
+          {activeTab === "senhas" && <SenhasModule />}
+          {activeTab === "relatorios" && <Relatorios />}
+        </div>
       </main>
+
+      {confirmLogout && (
+        <ConfirmDialog
+          title="Sair do sistema?"
+          message="Você precisará informar suas credenciais novamente para voltar a operar as vendas."
+          confirmLabel="Sair"
+          tone="danger"
+          onConfirm={doLogout}
+          onCancel={() => setConfirmLogout(false)}
+        />
+      )}
     </div>
   );
 }
 
-const CARD_COLORS: Record<string, string> = {
-  green: "bg-emerald-50 text-emerald-600",
-  yellow: "bg-amber-50 text-amber-600",
-  blue: "bg-blue-50 text-blue-600",
-  purple: "bg-violet-50 text-violet-600",
+const CARD_ACCENTS: Record<string, { iconBg: string; iconText: string; ring: string }> = {
+  emerald: { iconBg: "bg-emerald-50", iconText: "text-emerald-600", ring: "ring-emerald-100" },
+  amber: { iconBg: "bg-amber-50", iconText: "text-amber-600", ring: "ring-amber-100" },
+  brand: { iconBg: "bg-brand-50", iconText: "text-brand-600", ring: "ring-brand-100" },
+  violet: { iconBg: "bg-violet-50", iconText: "text-violet-600", ring: "ring-violet-100" },
 };
 
 function StatCard({
   title,
   value,
   subtitle,
-  color,
+  accent,
+  compactValue = false,
 }: {
   title: string;
   value: string;
   subtitle?: string;
-  color: keyof typeof CARD_COLORS | string;
+  accent: keyof typeof CARD_ACCENTS;
+  /** Reduz o tamanho do número quando o texto é longo (valores em R$ no celular). */
+  compactValue?: boolean;
 }) {
+  const a = CARD_ACCENTS[accent];
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100"
+      className="card p-4 sm:p-6"
     >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-gray-500">{title}</h3>
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${CARD_COLORS[color]}`}>
-          <div className="w-2 h-2 bg-current rounded-full" />
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 sm:text-xs">
+          {title}
+        </h3>
+        <div
+          className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${a.iconBg} ${a.iconText} ring-1 ${a.ring}`}
+        >
+          <div className="h-2 w-2 rounded-full bg-current" />
         </div>
       </div>
-      <div className="text-2xl font-bold text-gray-900">{value}</div>
-      {subtitle && <p className="text-xs text-gray-400 mt-1">{subtitle}</p>}
+      <div
+        className={`font-display font-bold tracking-tight text-slate-900 tabular-nums ${
+          compactValue ? "text-lg leading-tight sm:text-2xl" : "text-2xl sm:text-3xl"
+        }`}
+      >
+        {value}
+      </div>
+      {subtitle && (
+        <p className="mt-1 truncate text-[11px] text-slate-400 sm:text-xs" title={subtitle}>
+          {subtitle}
+        </p>
+      )}
     </motion.div>
   );
 }

@@ -10,7 +10,8 @@ interface ModalProps {
 
 /**
  * Modal acessível: fecha com ESC, bloqueia scroll do body,
- * focus trap simples e aria-modal.
+ * focus trap simples e aria-modal. No celular comporta-se como
+ * "bottom sheet" (desliza de baixo, cantos superiores arredondados).
  */
 export default function Modal({ onClose, labelledBy, children }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -49,7 +50,7 @@ export default function Modal({ onClose, labelledBy, children }: ModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/60 backdrop-blur-sm sm:items-center sm:p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -60,11 +61,16 @@ export default function Modal({ onClose, labelledBy, children }: ModalProps) {
       <motion.div
         ref={panelRef}
         tabIndex={-1}
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden outline-none"
+        initial={{ opacity: 0, y: 48 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 48 }}
+        transition={{ type: "spring", duration: 0.35, bounce: 0.05 }}
+        className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl bg-white shadow-2xl outline-none sm:max-w-lg sm:rounded-3xl"
       >
+        {/* Alça visual de bottom sheet no celular */}
+        <div className="sticky top-0 z-10 flex justify-center bg-white pt-3 sm:hidden">
+          <span className="h-1 w-10 rounded-full bg-slate-300" aria-hidden="true" />
+        </div>
         {children}
       </motion.div>
     </div>

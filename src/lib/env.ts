@@ -21,9 +21,14 @@ if (!parsed.success) {
   const issues = parsed.error.issues
     .map((i) => `  - ${i.path.join(".")}: ${i.message}`)
     .join("\n");
-  throw new Error(
-    `Configuração de ambiente inválida.\nDefina as variáveis no arquivo .env.local:\n${issues}\n\nConsulte .env.example para referência.`
+  // Não derruba o app: loga com instruções claras. As chamadas ao Supabase
+  // falharão com "Failed to fetch", e a tela de login exibirá a mensagem traduzida.
+  console.error(
+    `[Configuração inválida] Defina as variáveis abaixo em .env.local (dev) ou no painel de Environment Variables do seu host (Vercel/Netlify) e refaça o deploy:\n${issues}\n\nConsulte .env.example para referência.`
   );
 }
 
-export const env = parsed.data;
+export const env = {
+  VITE_SUPABASE_URL: parsed.data?.VITE_SUPABASE_URL ?? "",
+  VITE_SUPABASE_ANON_KEY: parsed.data?.VITE_SUPABASE_ANON_KEY ?? "",
+};
