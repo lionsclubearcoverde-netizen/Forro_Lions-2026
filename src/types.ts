@@ -1,18 +1,22 @@
-export type MesaStatus = 'livre' | 'reservada' | 'paga';
+import type { Session, User } from "@supabase/supabase-js";
+
+export type MesaStatus = "livre" | "reservada" | "paga";
+
+export type Setor = "inferior" | "esquerda" | "direita";
 
 export interface Mesa {
   id: number;
   numero: number;
-  setor: 'inferior' | 'esquerda' | 'direita';
+  setor: Setor;
   linha: number;
   coluna: number;
   status: MesaStatus;
-  responsavel?: string;
-  telefone?: string;
-  forma_pagamento?: string;
+  responsavel?: string | null;
+  telefone?: string | null;
+  forma_pagamento?: string | null;
   valor_pago: number;
-  data_reserva?: string;
-  data_pagamento?: string;
+  data_reserva?: string | null;
+  data_pagamento?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -26,6 +30,7 @@ export interface Senha {
   valor_total: number;
   forma_pagamento: string;
   data_venda: string;
+  created_by?: string | null;
   created_at: string;
 }
 
@@ -38,3 +43,7 @@ export interface Stats {
   arrecadadoSenhas: number;
   totalGeral: number;
 }
+
+/** Tipos de sessão/auth re-exportados para evitar `any` na aplicação. */
+export type AppSession = Session;
+export type AppUser = User;
